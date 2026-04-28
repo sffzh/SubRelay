@@ -1,0 +1,15 @@
+<UserControl x:Class="GameSubRelay.App.Settings.TtsSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Margin="12">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Text="语音输出" FontWeight="SemiBold" FontSize="16" />
+            <CheckBox Content="启用 TTS" IsChecked="{Binding TtsEnabled}" />
+            <CheckBox Content="播放麦克风通道译文" IsChecked="{Binding TtsForMicrophone}" />
+            <CheckBox Content="播放监听通道译文" IsChecked="{Binding TtsForMonitor}" />
+            <TextBlock Text="队列策略：最大长度3，满后丢弃最旧项" Foreground="Gray" />
+            <TextBox Text="{Binding QueueStrategy}" AcceptsReturn="True" Height="72" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
