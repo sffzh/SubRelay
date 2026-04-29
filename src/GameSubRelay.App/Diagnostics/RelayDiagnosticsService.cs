@@ -31,7 +31,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
         CancellationToken cancellationToken = default)
     {
         var snapshot = TranslationSnapshot.From(translation);
-        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "同声传译");
+        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "AST");
 
         using var timeout = CreateTimeout(cancellationToken, ConnectionTimeout);
         await using var session = await CreateTranslationProvider(snapshot, outputDeviceId: null)
@@ -46,7 +46,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
             .ConfigureAwait(false);
 
         await session.CompleteAsync(timeout.Token).ConfigureAwait(false);
-        return "连接成功：同声传译会话已建立";
+        return "连接成功：AST 会话已建立";
     }
 
     public async Task<string> TestTranslationFunctionAsync(
@@ -55,7 +55,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
         CancellationToken cancellationToken = default)
     {
         var snapshot = TranslationSnapshot.From(translation);
-        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "同声传译");
+        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "AST");
 
         var frames = await CaptureFramesAsync(
                 AudioChannelId.Microphone,
@@ -90,12 +90,78 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
             : $"功能正常：{FormatAudioSummary(frames)}，原始：{Preview(segment.SourceText)}；翻译：{Preview(segment.TranslatedText)}";
     }
 
+    public async Task<string> TestGameCaptionConnectionAsync(
+        TranslationSettingsViewModel translation,
+        GameCaptionSettingsViewModel gameCaption,
+        CancellationToken cancellationToken = default)
+    {
+        var snapshot = TranslationSnapshot.From(translation, gameCaption);
+        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "AST");
+
+        using var timeout = CreateTimeout(cancellationToken, ConnectionTimeout);
+        await using var session = await CreateTranslationProvider(snapshot, outputDeviceId: null)
+            .StartSessionAsync(
+                AudioChannelId.Monitor,
+                new SpeechTranslationSessionOptions(
+                    snapshot.SourceLanguage,
+                    snapshot.TargetLanguage,
+                    snapshot.Region,
+                    Mode: "s2t"),
+                timeout.Token)
+            .ConfigureAwait(false);
+
+        await session.CompleteAsync(timeout.Token).ConfigureAwait(false);
+        return "连接成功：游戏语音字幕 AST 会话已建立";
+    }
+
+    public async Task<string> TestGameCaptionFunctionAsync(
+        TranslationSettingsViewModel translation,
+        GameCaptionSettingsViewModel gameCaption,
+        AudioSettingsViewModel audio,
+        CancellationToken cancellationToken = default)
+    {
+        var snapshot = TranslationSnapshot.From(translation, gameCaption);
+        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "AST");
+
+        var frames = await CaptureFramesAsync(
+                AudioChannelId.Monitor,
+                new LoopbackCaptureService(_deviceService, NormalizeDeviceId(audio.SelectedMonitorDevice)),
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (frames.Count == 0)
+        {
+            return "未采集到游戏/系统声音，请确认已选择播放设备并让它正在出声";
+        }
+
+        using var timeout = CreateTimeout(cancellationToken, ConnectionTimeout + ResponseTimeout);
+        await using var session = await CreateTranslationProvider(snapshot, outputDeviceId: null)
+            .StartSessionAsync(
+                AudioChannelId.Monitor,
+                new SpeechTranslationSessionOptions(
+                    snapshot.SourceLanguage,
+                    snapshot.TargetLanguage,
+                    snapshot.Region,
+                    Mode: "s2t"),
+                timeout.Token)
+            .ConfigureAwait(false);
+
+        var segments = await SendFramesAndCollectTranslationAsync(session, frames, timeout.Token)
+            .ConfigureAwait(false);
+        var segment = segments.LastOrDefault(item =>
+            !string.IsNullOrWhiteSpace(item.SourceText) ||
+            !string.IsNullOrWhiteSpace(item.TranslatedText));
+
+        return segment is null
+            ? $"已采集并发送游戏/系统声音（{FormatAudioSummary(frames)}），但未收到字幕结果"
+            : $"游戏字幕正常：{FormatAudioSummary(frames)}，原始：{Preview(segment.SourceText)}；翻译：{Preview(segment.TranslatedText)}";
+    }
+
     public async Task<string> TestSpeechRecognitionConnectionAsync(
         SpeechRecognitionSettingsViewModel speechRecognition,
         CancellationToken cancellationToken = default)
     {
         var snapshot = SpeechRecognitionSnapshot.From(speechRecognition);
-        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "语音识别");
+        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "ASR 诊断");
 
         using var timeout = CreateTimeout(cancellationToken, ConnectionTimeout);
         await using var session = await CreateSpeechRecognitionProvider(snapshot)
@@ -106,7 +172,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
             .ConfigureAwait(false);
 
         await session.CompleteAsync(timeout.Token).ConfigureAwait(false);
-        return "连接成功：语音识别会话已建立";
+        return "连接成功：ASR 诊断会话已建立";
     }
 
     public async Task<string> TestSpeechRecognitionFunctionAsync(
@@ -115,7 +181,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
         CancellationToken cancellationToken = default)
     {
         var snapshot = SpeechRecognitionSnapshot.From(speechRecognition);
-        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "语音识别");
+        ValidateCredentials(snapshot.AppKey, snapshot.AccessKey, "ASR 诊断");
 
         var frames = await CaptureFramesAsync(
                 AudioChannelId.Monitor,
@@ -140,8 +206,8 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
         var segment = segments.LastOrDefault(item => !string.IsNullOrWhiteSpace(item.Text));
 
         return segment is null
-            ? $"已采集并发送游戏/系统声音（{FormatAudioSummary(frames)}），但未收到识别结果"
-            : $"功能正常：{FormatAudioSummary(frames)}，识别：{Preview(segment.Text)}";
+            ? $"已采集并发送游戏/系统声音（{FormatAudioSummary(frames)}），但未收到 ASR 纯转写结果"
+            : $"ASR 纯转写正常：{FormatAudioSummary(frames)}，文本：{Preview(segment.Text)}";
     }
 
     private VolcengineAstSpeechTranslationProvider CreateTranslationProvider(
@@ -341,6 +407,18 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
                 settings.Region,
                 settings.AccessKeyId,
                 settings.SecretAccessKey);
+        }
+
+        public static TranslationSnapshot From(
+            TranslationSettingsViewModel credentials,
+            GameCaptionSettingsViewModel settings)
+        {
+            return new TranslationSnapshot(
+                settings.SourceLanguage,
+                settings.TargetLanguage,
+                settings.Region,
+                credentials.AccessKeyId,
+                credentials.SecretAccessKey);
         }
     }
 

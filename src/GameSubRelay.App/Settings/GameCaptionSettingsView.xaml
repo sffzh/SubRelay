@@ -1,9 +1,8 @@
 <UserControl
-    x:Class="GameSubRelay.App.Settings.SpeechRecognitionSettingsView"
+    x:Class="GameSubRelay.App.Settings.GameCaptionSettingsView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    Loaded="OnLoaded">
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24">
             <StackPanel Margin="0 0 0 18">
@@ -11,7 +10,7 @@
                 <TextBlock
                     Margin="0 6 0 0"
                     Style="{StaticResource MutedTextStyle}"
-                    Text="配置游戏/系统声音的游戏语音字幕通道；保留的 ASR 项仅用于诊断和纯转写测试。" />
+                    Text="配置游戏/系统声音的 AST s2t 字幕方向。凭据使用左侧火山 AST 配置。" />
             </StackPanel>
 
             <Border Style="{StaticResource SectionPanelStyle}">
@@ -29,27 +28,27 @@
                     <TextBlock
                         Grid.Row="0"
                         Style="{StaticResource FieldLabelTextStyle}"
-                        Text="ASR 诊断服务" />
+                        Text="源语言" />
                     <ComboBox
                         Grid.Row="0"
                         Grid.Column="1"
                         DisplayMemberPath="DisplayText"
-                        ItemsSource="{Binding Providers}"
-                        SelectedValue="{Binding Provider, Mode=TwoWay}"
+                        ItemsSource="{Binding AvailableSourceLanguages}"
+                        SelectedValue="{Binding SourceLanguage, Mode=TwoWay}"
                         SelectedValuePath="Code" />
 
                     <TextBlock
                         Grid.Row="1"
                         Margin="0 14 0 0"
                         Style="{StaticResource FieldLabelTextStyle}"
-                        Text="纯转写语言" />
+                        Text="目标语言" />
                     <ComboBox
                         Grid.Row="1"
                         Grid.Column="1"
                         Margin="0 14 0 0"
                         DisplayMemberPath="DisplayText"
-                        ItemsSource="{Binding AvailableLanguages}"
-                        SelectedValue="{Binding Language, Mode=TwoWay}"
+                        ItemsSource="{Binding AvailableTargetLanguages}"
+                        SelectedValue="{Binding TargetLanguage, Mode=TwoWay}"
                         SelectedValuePath="Code" />
 
                     <TextBlock
@@ -67,44 +66,7 @@
 
             <Border Style="{StaticResource SectionPanelStyle}">
                 <StackPanel>
-                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="火山 ASR 诊断/纯转写凭据" />
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="180" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <TextBlock
-                            Grid.Row="0"
-                            Style="{StaticResource FieldLabelTextStyle}"
-                            Text="APP ID" />
-                        <TextBox
-                            Grid.Row="0"
-                            Grid.Column="1"
-                            Text="{Binding AccessKeyId}" />
-
-                        <TextBlock
-                            Grid.Row="1"
-                            Margin="0 14 0 0"
-                            Style="{StaticResource FieldLabelTextStyle}"
-                            Text="Access Token" />
-                        <PasswordBox
-                            x:Name="SecretAccessKeyBox"
-                            Grid.Row="1"
-                            Grid.Column="1"
-                            Margin="0 14 0 0"
-                            PasswordChanged="SecretAccessKeyPasswordChanged" />
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <Border Style="{StaticResource SectionPanelStyle}">
-                <StackPanel>
-                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="字幕运行与 ASR 诊断" />
+                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="运行与测试" />
                     <WrapPanel Margin="0 0 0 10">
                         <ui:Button
                             MinWidth="112"
@@ -112,7 +74,7 @@
                             Appearance="Primary"
                             Command="{Binding DataContext.StartSpeechRecognitionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             Content="开始字幕"
-                            Icon="{ui:SymbolIcon Mic20}" />
+                            Icon="{ui:SymbolIcon Play20}" />
                         <ui:Button
                             MinWidth="112"
                             Margin="0 0 12 8"
@@ -142,7 +104,7 @@
                             MinWidth="112"
                             Appearance="Secondary"
                             Command="{Binding TestConnectionCommand}"
-                            Content="测试 ASR 连接"
+                            Content="测试连接"
                             Icon="{ui:SymbolIcon PlugConnected20}" />
                         <TextBlock
                             Grid.Row="0"
@@ -159,7 +121,7 @@
                             Margin="0 10 0 0"
                             Appearance="Secondary"
                             Command="{Binding TestFunctionCommand}"
-                            Content="纯转写测试"
+                            Content="测试字幕"
                             Icon="{ui:SymbolIcon BeakerSettings20}" />
                         <TextBlock
                             Grid.Row="1"

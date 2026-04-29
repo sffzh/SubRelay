@@ -62,7 +62,7 @@
                         Grid.Row="1"
                         Margin="0 14 0 0"
                         Style="{StaticResource FieldLabelTextStyle}"
-                        Text="语音识别播放设备" />
+                        Text="游戏/系统声音设备" />
                     <ComboBox
                         Grid.Row="1"
                         Grid.Column="1"
@@ -96,12 +96,12 @@
                         IsChecked="{Binding MicrophoneEnabled}" />
                     <CheckBox
                         Margin="0 10 0 0"
-                        Content="启用语音识别（播放设备）"
+                        Content="启用游戏语音字幕（播放设备）"
                         IsChecked="{Binding MonitorEnabled}" />
                     <TextBlock
                         Margin="0 12 0 0"
                         Foreground="{StaticResource AppWarningBrush}"
-                        Text="提示：如果识别播放设备与同声输出设备一致，可能出现翻译语音再次被采集的反馈问题。"
+                        Text="提示：如果游戏/系统声音设备与同声输出设备一致，可能出现翻译语音再次被采集的反馈问题。"
                         TextWrapping="Wrap"
                         Visibility="{Binding IsDeviceFeedbackRisk, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </StackPanel>

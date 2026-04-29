@@ -15,6 +15,8 @@ namespace GameSubRelay.App;
 public partial class App : Application
 {
     private IHost? _host;
+    private OverlayWindow? _overlayWindow;
+    private bool _overlayWindowClosed;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -90,6 +92,13 @@ public partial class App : Application
 
         var overlayWindow = _host.Services.GetRequiredService<OverlayWindow>();
         var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+        _overlayWindow = overlayWindow;
+        overlayWindow.Closed += (_, _) =>
+        {
+            _overlayWindowClosed = true;
+            _overlayWindow = null;
+        };
+        mainWindow.Closing += (_, _) => CloseOverlayWindow();
 
         MainWindow = mainWindow;
         mainWindow.Show();
@@ -142,6 +151,8 @@ public partial class App : Application
 
     protected override async void OnExit(ExitEventArgs e)
     {
+        CloseOverlayWindow();
+
         if (_host is not null)
         {
             await _host.StopAsync();
@@ -149,5 +160,18 @@ public partial class App : Application
         }
 
         base.OnExit(e);
+    }
+
+    private void CloseOverlayWindow()
+    {
+        var overlayWindow = _overlayWindow;
+        if (overlayWindow is null || _overlayWindowClosed)
+        {
+            return;
+        }
+
+        _overlayWindowClosed = true;
+        _overlayWindow = null;
+        overlayWindow.Close();
     }
 }

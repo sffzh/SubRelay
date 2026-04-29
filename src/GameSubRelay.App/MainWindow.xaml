@@ -58,7 +58,7 @@
                     <TextBlock
                         Margin="0 6 0 0"
                         Style="{StaticResource MutedTextStyle}"
-                        Text="快速控制同声传译、语音识别和字幕浮层；详细参数在左侧分类里调整。" />
+                        Text="快速控制语音服务和字幕浮层；详细参数在左侧分类里调整。" />
                 </StackPanel>
 
                 <WrapPanel
@@ -82,7 +82,7 @@
                             <TextBlock
                                 FontWeight="SemiBold"
                                 Foreground="#244EA4"
-                                Text="识别" />
+                                Text="游戏字幕" />
                             <TextBlock
                                 Margin="8 0 0 0"
                                 Foreground="#244EA4"
@@ -142,7 +142,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="语音识别" />
+                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="游戏语音字幕" />
                     <TextBlock
                         Grid.Row="1"
                         Margin="0 0 0 14"
@@ -153,14 +153,14 @@
                             MinWidth="88"
                             Appearance="Primary"
                             Command="{Binding StartSpeechRecognitionCommand}"
-                            Content="开始"
+                            Content="开始字幕"
                             Icon="{ui:SymbolIcon Mic20}" />
                         <ui:Button
                             MinWidth="88"
                             Margin="8 0 0 0"
                             Appearance="Secondary"
                             Command="{Binding StopSpeechRecognitionCommand}"
-                            Content="停止"
+                            Content="停止字幕"
                             Icon="{ui:SymbolIcon Stop20}" />
                     </StackPanel>
                 </Grid>
@@ -342,11 +342,8 @@
             <TabItem Header="音频设备">
                 <settings:AudioSettingsView DataContext="{Binding Audio}" />
             </TabItem>
-            <TabItem Header="同声传译">
-                <settings:TranslationSettingsView DataContext="{Binding Translation}" />
-            </TabItem>
-            <TabItem Header="语音识别">
-                <settings:SpeechRecognitionSettingsView DataContext="{Binding SpeechRecognition}" />
+            <TabItem Header="语音服务">
+                <settings:SpeechServicesSettingsView />
             </TabItem>
             <TabItem Header="字幕浮层">
                 <settings:OverlaySettingsView DataContext="{Binding Overlay}" />

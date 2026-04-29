@@ -7,11 +7,11 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24">
             <StackPanel Margin="0 0 0 18">
-                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="同声传译" />
+                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="我的语音输出" />
                 <TextBlock
                     Margin="0 6 0 0"
                     Style="{StaticResource MutedTextStyle}"
-                    Text="配置麦克风通道的实时翻译服务、语言方向和火山凭据。" />
+                    Text="配置麦克风 AST s2s 同声传译方向和火山凭据，例如中文麦克风转英文语音。" />
             </StackPanel>
 
             <Border Style="{StaticResource SectionPanelStyle}">
@@ -30,7 +30,7 @@
                     <TextBlock
                         Grid.Row="0"
                         Style="{StaticResource FieldLabelTextStyle}"
-                        Text="同传服务" />
+                        Text="AST 服务" />
                     <ComboBox
                         Grid.Row="0"
                         Grid.Column="1"
@@ -82,7 +82,7 @@
 
             <Border Style="{StaticResource SectionPanelStyle}">
                 <StackPanel>
-                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="火山同声传译凭据" />
+                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="火山 AST 凭据" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="180" />
@@ -178,7 +178,7 @@
                             Margin="0 10 0 0"
                             Appearance="Secondary"
                             Command="{Binding TestFunctionCommand}"
-                            Content="测试功能"
+                            Content="测试麦克风"
                             Icon="{ui:SymbolIcon BeakerSettings20}" />
                         <TextBlock
                             Grid.Row="1"

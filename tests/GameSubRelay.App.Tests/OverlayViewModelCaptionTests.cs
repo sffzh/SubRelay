@@ -37,7 +37,7 @@ public sealed class OverlayViewModelCaptionTests
                 AudioChannelId.Monitor,
                 "Game",
                 "current game voice",
-                string.Empty,
+                "当前游戏声音",
                 SegmentStability.Final,
                 now.AddMilliseconds(-500))
         ]);
@@ -48,6 +48,7 @@ public sealed class OverlayViewModelCaptionTests
         Assert.False(viewModel.MicrophoneCaption.IsFinal);
         Assert.Equal("游戏声音", viewModel.MonitorCaption.ChannelLabel);
         Assert.Equal("current game voice", viewModel.MonitorCaption.SourceText);
+        Assert.Equal("当前游戏声音", viewModel.MonitorCaption.TranslatedText);
         Assert.Equal("current game voice", viewModel.MonitorCaption.PrimaryText);
         Assert.True(viewModel.MonitorCaption.IsFinal);
     }

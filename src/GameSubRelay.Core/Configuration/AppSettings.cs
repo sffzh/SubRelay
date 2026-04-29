@@ -25,6 +25,7 @@ public sealed record AppSettings(
     {
         var audio = Audio ?? AudioSettings.Default;
         var translation = (Translation ?? TranslationSettings.Default).Normalize();
+        var gameCaption = (GameCaption ?? GameCaptionSettings.FromTranslation(translation)).Normalize();
         var speechRecognition = (SpeechRecognition ?? SpeechRecognitionSettings.FromTranslation(translation)).Normalize();
         var tts = Tts ?? new TtsSettings(
             audio.TtsEnabled,
@@ -47,6 +48,7 @@ public sealed record AppSettings(
         {
             Audio = audio.Normalize(normalizedTts),
             Translation = translation,
+            GameCaption = gameCaption,
             SpeechRecognition = speechRecognition,
             Overlay = (Overlay ?? OverlaySettings.Default).Normalize(),
             Hotkeys = (Hotkeys ?? HotkeySettings.Default).Normalize(),
@@ -117,4 +119,6 @@ public sealed record AppSettings(
             issues.Add(new AppSettingsValidationIssue(path, error ?? "Hotkey is invalid."));
         }
     }
+
+    public GameCaptionSettings GameCaption { get; init; } = GameCaptionSettings.Default;
 }

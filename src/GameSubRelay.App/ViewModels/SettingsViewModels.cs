@@ -280,7 +280,7 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
         }
     }
 
-    private static ObservableCollection<LanguageOption> CreateVolcengineAstLanguages() => new()
+    public static ObservableCollection<LanguageOption> CreateVolcengineAstLanguages() => new()
     {
         new("zh", "中文"),
         new("en", "英语"),
@@ -292,6 +292,138 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
         new("fr", "法语"),
         new("zhen", "中英互译")
     };
+}
+
+public sealed class GameCaptionSettingsViewModel : ViewModelBase
+{
+    private string _sourceLanguage = GameCaptionSettings.Default.SourceLanguage;
+    private string _targetLanguage = GameCaptionSettings.Default.TargetLanguage;
+    private string _region = GameCaptionSettings.Default.Region;
+    private string _connectionTestStatus = "未测试";
+    private string _functionTestStatus = "未测试";
+    private bool _isTesting;
+    private Func<CancellationToken, Task<string>>? _testConnectionAsync;
+    private Func<CancellationToken, Task<string>>? _testFunctionAsync;
+
+    public ObservableCollection<LanguageOption> AvailableSourceLanguages { get; } =
+        TranslationSettingsViewModel.CreateVolcengineAstLanguages();
+
+    public ObservableCollection<LanguageOption> AvailableTargetLanguages { get; } =
+        TranslationSettingsViewModel.CreateVolcengineAstLanguages();
+
+    public string SourceLanguage
+    {
+        get => _sourceLanguage;
+        set => SetProperty(ref _sourceLanguage, value);
+    }
+
+    public string TargetLanguage
+    {
+        get => _targetLanguage;
+        set => SetProperty(ref _targetLanguage, value);
+    }
+
+    public string Region
+    {
+        get => _region;
+        set => SetProperty(ref _region, value);
+    }
+
+    public string ConnectionTestStatus
+    {
+        get => _connectionTestStatus;
+        private set => SetProperty(ref _connectionTestStatus, value);
+    }
+
+    public string FunctionTestStatus
+    {
+        get => _functionTestStatus;
+        private set => SetProperty(ref _functionTestStatus, value);
+    }
+
+    public bool IsTesting
+    {
+        get => _isTesting;
+        private set
+        {
+            if (SetProperty(ref _isTesting, value))
+            {
+                TestConnectionCommand.RaiseCanExecuteChanged();
+                TestFunctionCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public RelayCommand TestConnectionCommand { get; }
+    public RelayCommand TestFunctionCommand { get; }
+
+    public GameCaptionSettingsViewModel()
+    {
+        TestConnectionCommand = new RelayCommand(async () => await TestConnectionAsync(), () => !IsTesting);
+        TestFunctionCommand = new RelayCommand(async () => await TestFunctionAsync(), () => !IsTesting);
+    }
+
+    public void SetDiagnostics(
+        Func<CancellationToken, Task<string>> testConnectionAsync,
+        Func<CancellationToken, Task<string>> testFunctionAsync)
+    {
+        _testConnectionAsync = testConnectionAsync;
+        _testFunctionAsync = testFunctionAsync;
+    }
+
+    public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
+    {
+        await RunTestAsync(
+            "正在测试游戏语音字幕连接...",
+            result => ConnectionTestStatus = result,
+            _testConnectionAsync,
+            () => "测试连接需要运行时诊断服务",
+            cancellationToken);
+    }
+
+    public async Task TestFunctionAsync(CancellationToken cancellationToken = default)
+    {
+        await RunTestAsync(
+            "正在测试游戏/系统声音字幕...",
+            result => FunctionTestStatus = result,
+            _testFunctionAsync,
+            () => "测试功能需要运行时诊断服务",
+            cancellationToken);
+    }
+
+    private async Task RunTestAsync(
+        string runningText,
+        Action<string> setStatus,
+        Func<CancellationToken, Task<string>>? handler,
+        Func<string> fallback,
+        CancellationToken cancellationToken)
+    {
+        if (IsTesting)
+        {
+            return;
+        }
+
+        IsTesting = true;
+        setStatus(runningText);
+        try
+        {
+            setStatus(handler is null
+                ? fallback()
+                : await handler(cancellationToken));
+        }
+        catch (OperationCanceledException)
+        {
+            setStatus("测试超时或已取消，请查看日志");
+        }
+        catch (Exception ex)
+        {
+            setStatus($"测试失败：{ex.Message}");
+        }
+        finally
+        {
+            IsTesting = false;
+        }
+    }
 }
 
 public sealed class SpeechRecognitionSettingsViewModel : ViewModelBase
@@ -309,7 +441,7 @@ public sealed class SpeechRecognitionSettingsViewModel : ViewModelBase
 
     public ObservableCollection<ProviderOption> Providers { get; } = new()
     {
-        new(SpeechRecognitionSettings.DefaultProvider, "火山流式语音识别 ASR")
+        new(SpeechRecognitionSettings.DefaultProvider, "ASR 诊断/纯转写测试（火山流式 ASR）")
     };
 
     public ObservableCollection<LanguageOption> AvailableLanguages { get; } = CreateVolcengineAsrLanguages();
@@ -389,7 +521,7 @@ public sealed class SpeechRecognitionSettingsViewModel : ViewModelBase
     public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
     {
         await RunTestAsync(
-            "正在测试语音识别连接...",
+            "正在测试 ASR 诊断连接...",
             result => ConnectionTestStatus = result,
             _testConnectionAsync,
             ValidateConnectionLocally,
@@ -399,18 +531,18 @@ public sealed class SpeechRecognitionSettingsViewModel : ViewModelBase
     public async Task TestFunctionAsync(CancellationToken cancellationToken = default)
     {
         await RunTestAsync(
-            "正在测试游戏/系统声音识别...",
+            "正在运行 ASR 纯转写测试...",
             result => FunctionTestStatus = result,
             _testFunctionAsync,
-            () => "测试功能需要运行时诊断服务",
+            () => "ASR 诊断/纯转写测试需要运行时诊断服务",
             cancellationToken);
     }
 
     private string ValidateConnectionLocally()
     {
         return string.IsNullOrWhiteSpace(AccessKeyId) || string.IsNullOrWhiteSpace(SecretAccessKey)
-            ? "请填写火山语音识别 APP ID 和 Access Token"
-            : "凭据已填写；识别连通性会在通道启动时验证";
+            ? "请填写火山 ASR 诊断 APP ID 和 Access Token"
+            : "ASR 诊断凭据已填写；连通性会在诊断测试时验证";
     }
 
     private async Task RunTestAsync(
@@ -574,6 +706,7 @@ public sealed class SettingsViewModel : ViewModelBase
         _isSpeechRecognitionRunning = runtimeService?.IsChannelRunning(AudioChannelId.Monitor) ?? false;
         Audio = new AudioSettingsViewModel();
         Translation = new TranslationSettingsViewModel();
+        GameCaption = new GameCaptionSettingsViewModel();
         SpeechRecognition = new SpeechRecognitionSettingsViewModel();
         Overlay = overlayViewModel.Settings;
         Tts = new TtsSettingsViewModel();
@@ -603,6 +736,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public AudioSettingsViewModel Audio { get; }
     public TranslationSettingsViewModel Translation { get; }
+    public GameCaptionSettingsViewModel GameCaption { get; }
     public SpeechRecognitionSettingsViewModel SpeechRecognition { get; }
     public OverlayRenderSettings Overlay { get; }
     public TtsSettingsViewModel Tts { get; }
@@ -696,7 +830,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public string RelayStateText => IsRelayRunning ? "同传运行中" : "同传已停止";
 
-    public string SpeechRecognitionStateText => IsSpeechRecognitionRunning ? "识别运行中" : "识别已停止";
+    public string SpeechRecognitionStateText => IsSpeechRecognitionRunning ? "游戏字幕运行中" : "游戏字幕已停止";
 
     public string StatusText
     {
@@ -877,7 +1011,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
         if (!Audio.MonitorEnabled)
         {
-            StatusText = "请先在音频设置中启用游戏声音，再开始语音识别";
+            StatusText = "请先在音频设置中启用游戏/系统声音，再开始游戏语音字幕";
             return;
         }
 
@@ -885,15 +1019,15 @@ public sealed class SettingsViewModel : ViewModelBase
         try
         {
             Apply();
-            StatusText = "正在开始语音识别...";
+            StatusText = "正在开始游戏语音字幕...";
             await _runtimeService.StartChannelAsync(AudioChannelId.Monitor);
             UpdateRuntimeStates();
-            StatusText = IsSpeechRecognitionRunning ? "语音识别已开始" : "语音识别启动失败，请查看日志";
+            StatusText = IsSpeechRecognitionRunning ? "游戏语音字幕已开始" : "游戏语音字幕启动失败，请查看日志";
         }
         catch (Exception ex)
         {
             UpdateRuntimeStates();
-            StatusText = $"开始语音识别失败：{ex.Message}";
+            StatusText = $"开始游戏语音字幕失败：{ex.Message}";
         }
         finally
         {
@@ -912,15 +1046,15 @@ public sealed class SettingsViewModel : ViewModelBase
         IsSpeechRecognitionBusy = true;
         try
         {
-            StatusText = "正在停止语音识别...";
+            StatusText = "正在停止游戏语音字幕...";
             await _runtimeService.StopChannelAsync(AudioChannelId.Monitor);
             UpdateRuntimeStates();
-            StatusText = "语音识别已停止";
+            StatusText = "游戏语音字幕已停止";
         }
         catch (Exception ex)
         {
             UpdateRuntimeStates();
-            StatusText = $"停止语音识别失败：{ex.Message}";
+            StatusText = $"停止游戏语音字幕失败：{ex.Message}";
         }
         finally
         {
@@ -981,10 +1115,15 @@ public sealed class SettingsViewModel : ViewModelBase
             cancellationToken => IsRelayRunning
                 ? Task.FromResult("请先停止当前同传，再测试麦克风功能")
                 : _diagnosticsService.TestTranslationFunctionAsync(Translation, Audio, cancellationToken));
+        GameCaption.SetDiagnostics(
+            cancellationToken => _diagnosticsService.TestGameCaptionConnectionAsync(Translation, GameCaption, cancellationToken),
+            cancellationToken => IsSpeechRecognitionRunning
+                ? Task.FromResult("请先停止当前游戏语音字幕，再测试游戏字幕功能")
+                : _diagnosticsService.TestGameCaptionFunctionAsync(Translation, GameCaption, Audio, cancellationToken));
         SpeechRecognition.SetDiagnostics(
             cancellationToken => _diagnosticsService.TestSpeechRecognitionConnectionAsync(SpeechRecognition, cancellationToken),
             cancellationToken => IsSpeechRecognitionRunning
-                ? Task.FromResult("请先停止当前语音识别，再测试语音识别功能")
+                ? Task.FromResult("请先停止当前游戏语音字幕，再运行 ASR 诊断/纯转写测试")
                 : _diagnosticsService.TestSpeechRecognitionFunctionAsync(SpeechRecognition, Audio, cancellationToken));
     }
 
@@ -1026,6 +1165,10 @@ public sealed class SettingsViewModel : ViewModelBase
         Translation.TtsAppId = secrets.VolcengineTtsAppId;
         Translation.TtsToken = secrets.VolcengineTtsToken;
         Translation.TtsCluster = secrets.VolcengineTtsCluster;
+
+        GameCaption.SourceLanguage = settings.GameCaption.SourceLanguage;
+        GameCaption.TargetLanguage = settings.GameCaption.TargetLanguage;
+        GameCaption.Region = settings.GameCaption.Region;
 
         SpeechRecognition.Provider = settings.SpeechRecognition.Provider;
         SpeechRecognition.Language = settings.SpeechRecognition.Language;
@@ -1097,7 +1240,13 @@ public sealed class SettingsViewModel : ViewModelBase
                 Hotkeys.ToggleOverlayHotkey,
                 Hotkeys.ToggleEditModeHotkey,
                 Hotkeys.ClearCaptionsHotkey),
-            tts);
+            tts)
+        {
+            GameCaption = new GameCaptionSettings(
+                GameCaption.SourceLanguage,
+                GameCaption.TargetLanguage,
+                GameCaption.Region)
+        };
     }
 
     private SecretSettings CreateSecrets()

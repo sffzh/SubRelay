@@ -1,11 +1,9 @@
 using GameSubRelay.App.ViewModels;
 using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Captions;
-using GameSubRelay.Core.SpeechRecognition;
 using GameSubRelay.Core.Translation;
 using GameSubRelay.Infrastructure.Audio;
 using GameSubRelay.Infrastructure.Runtime;
-using GameSubRelay.Infrastructure.SpeechRecognition.Volcengine;
 using GameSubRelay.Infrastructure.Translation.Volcengine;
 using Microsoft.Extensions.Logging;
 
@@ -34,9 +32,7 @@ public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
     {
         var workers = new List<IAudioChannelWorker>();
         var logger = _loggerFactory.CreateLogger<TranslationChannelWorker>();
-        var recognitionLogger = _loggerFactory.CreateLogger<SpeechRecognitionChannelWorker>();
         var astLogger = _loggerFactory.CreateLogger<VolcengineAstSpeechTranslationProvider>();
-        var asrLogger = _loggerFactory.CreateLogger<VolcengineStreamingAsrProvider>();
 
         if (_settings.Audio.MicrophoneEnabled)
         {
@@ -68,23 +64,28 @@ public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
 
         if (_settings.Audio.MonitorEnabled)
         {
-            var asrProvider = new VolcengineStreamingAsrProvider(new VolcengineStreamingAsrOptions(
-                _settings.SpeechRecognition.AccessKeyId,
-                _settings.SpeechRecognition.SecretAccessKey),
-                new VolcengineStreamingAsrProtocolCodec(),
-                () => new ClientWebSocketStreamingAsrTransport(
-                    logger: _loggerFactory.CreateLogger<ClientWebSocketStreamingAsrTransport>()),
-                asrLogger);
-            var asrSessionOptions = new SpeechRecognitionSessionOptions(
-                _settings.SpeechRecognition.Language,
-                _settings.SpeechRecognition.Region);
+            var astProvider = new VolcengineAstSpeechTranslationProvider(
+                new VolcengineAstProviderOptions(
+                    _settings.Translation.AccessKeyId,
+                    _settings.Translation.SecretAccessKey),
+                new VolcengineAstProtobufProtocolCodec(),
+                () => new ClientWebSocketAstTransport(
+                    logger: _loggerFactory.CreateLogger<ClientWebSocketAstTransport>()),
+                audioOutputPlayer: null,
+                renderDeviceId: null,
+                logger: astLogger);
+            var astSessionOptions = new SpeechTranslationSessionOptions(
+                _settings.GameCaption.SourceLanguage,
+                _settings.GameCaption.TargetLanguage,
+                _settings.GameCaption.Region,
+                Mode: "s2t");
 
-            workers.Add(CreateRecognitionWorker(
+            workers.Add(CreateWorker(
                 AudioChannelId.Monitor,
                 new LoopbackCaptureService(_deviceService, NormalizeDeviceId(_settings.Audio.SelectedMonitorDevice)),
-                asrProvider,
-                asrSessionOptions,
-                recognitionLogger));
+                astProvider,
+                astSessionOptions,
+                logger));
         }
 
         return workers;
@@ -98,25 +99,6 @@ public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
         ILogger<TranslationChannelWorker> logger)
     {
         return new TranslationChannelWorker(
-            channelId,
-            new CaptureAudioFrameSource(
-                channelId,
-                captureService,
-                _loggerFactory.CreateLogger<CaptureAudioFrameSource>()),
-            provider,
-            sessionOptions,
-            _captionStore,
-            logger);
-    }
-
-    private SpeechRecognitionChannelWorker CreateRecognitionWorker(
-        AudioChannelId channelId,
-        IAudioCaptureService captureService,
-        ISpeechRecognitionProvider provider,
-        SpeechRecognitionSessionOptions sessionOptions,
-        ILogger<SpeechRecognitionChannelWorker> logger)
-    {
-        return new SpeechRecognitionChannelWorker(
             channelId,
             new CaptureAudioFrameSource(
                 channelId,

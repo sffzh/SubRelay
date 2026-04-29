@@ -31,6 +31,10 @@ public sealed class SettingsViewModelPersistenceTests
                 "ja",
                 "zh",
                 "cn-north-1"),
+            GameCaption = new GameCaptionSettings(
+                "en",
+                "zh",
+                "cn-north-1"),
             SpeechRecognition = new SpeechRecognitionSettings(
                 "VolcengineStreamingAsr",
                 "de",
@@ -65,6 +69,8 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.Equal("zh", viewModel.Translation.TargetLanguage);
         Assert.Equal("app-key", viewModel.Translation.AccessKeyId);
         Assert.Equal("access-key", viewModel.Translation.SecretAccessKey);
+        Assert.Equal("en", viewModel.GameCaption.SourceLanguage);
+        Assert.Equal("zh", viewModel.GameCaption.TargetLanguage);
         Assert.Equal("de", viewModel.SpeechRecognition.Language);
         Assert.Equal("asr-app-key", viewModel.SpeechRecognition.AccessKeyId);
         Assert.Equal("asr-access-key", viewModel.SpeechRecognition.SecretAccessKey);
@@ -90,6 +96,9 @@ public sealed class SettingsViewModelPersistenceTests
         viewModel.Audio.MicrophoneEnabled = false;
         viewModel.Translation.SourceLanguage = "en";
         viewModel.Translation.TargetLanguage = "zhen";
+        viewModel.GameCaption.SourceLanguage = "en";
+        viewModel.GameCaption.TargetLanguage = "zh";
+        viewModel.GameCaption.Region = "cn-north-1";
         viewModel.Translation.AccessKeyId = "app-key";
         viewModel.Translation.SecretAccessKey = "access-key";
         viewModel.SpeechRecognition.Language = "ja";
@@ -112,6 +121,8 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.Equal("Cable A", settingsStore.SavedSettings.Audio.TtsOutputDeviceId);
         Assert.False(settingsStore.SavedSettings.Audio.MicrophoneEnabled);
         Assert.Equal("zhen", settingsStore.SavedSettings.Translation.TargetLanguage);
+        Assert.Equal("en", settingsStore.SavedSettings.GameCaption.SourceLanguage);
+        Assert.Equal("zh", settingsStore.SavedSettings.GameCaption.TargetLanguage);
         Assert.Equal("ja", settingsStore.SavedSettings.SpeechRecognition.Language);
         Assert.Equal(101, settingsStore.SavedSettings.Overlay.Left);
         Assert.Equal(404, settingsStore.SavedSettings.Overlay.Height);
@@ -233,7 +244,7 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.False(viewModel.IsRelayRunning);
         Assert.False(viewModel.IsSpeechRecognitionRunning);
         Assert.Equal("同传已停止", viewModel.RelayStateText);
-        Assert.Equal("识别已停止", viewModel.SpeechRecognitionStateText);
+        Assert.Equal("游戏字幕已停止", viewModel.SpeechRecognitionStateText);
         Assert.True(viewModel.StartRelayCommand.CanExecute(null));
         Assert.False(viewModel.StopRelayCommand.CanExecute(null));
         Assert.True(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
@@ -278,7 +289,7 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.True(viewModel.IsSpeechRecognitionRunning);
         Assert.Equal(0, runtimeService.GetStartCount(AudioChannelId.Microphone));
         Assert.Equal(1, runtimeService.GetStartCount(AudioChannelId.Monitor));
-        Assert.Equal("识别运行中", viewModel.SpeechRecognitionStateText);
+        Assert.Equal("游戏字幕运行中", viewModel.SpeechRecognitionStateText);
         Assert.True(viewModel.StartRelayCommand.CanExecute(null));
         Assert.False(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
         Assert.True(viewModel.StopSpeechRecognitionCommand.CanExecute(null));
@@ -288,7 +299,7 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.False(viewModel.IsSpeechRecognitionRunning);
         Assert.Equal(0, runtimeService.GetStopCount(AudioChannelId.Microphone));
         Assert.Equal(1, runtimeService.GetStopCount(AudioChannelId.Monitor));
-        Assert.Equal("识别已停止", viewModel.SpeechRecognitionStateText);
+        Assert.Equal("游戏字幕已停止", viewModel.SpeechRecognitionStateText);
         Assert.True(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
         Assert.False(viewModel.StopSpeechRecognitionCommand.CanExecute(null));
     }
@@ -344,15 +355,21 @@ public sealed class SettingsViewModelPersistenceTests
 
         await viewModel.Translation.TestConnectionAsync();
         await viewModel.Translation.TestFunctionAsync();
+        await viewModel.GameCaption.TestConnectionAsync();
+        await viewModel.GameCaption.TestFunctionAsync();
         await viewModel.SpeechRecognition.TestConnectionAsync();
         await viewModel.SpeechRecognition.TestFunctionAsync();
 
         Assert.Equal("translation connection ok", viewModel.Translation.ConnectionTestStatus);
         Assert.Equal("translation function ok", viewModel.Translation.FunctionTestStatus);
+        Assert.Equal("game caption connection ok", viewModel.GameCaption.ConnectionTestStatus);
+        Assert.Equal("game caption function ok", viewModel.GameCaption.FunctionTestStatus);
         Assert.Equal("recognition connection ok", viewModel.SpeechRecognition.ConnectionTestStatus);
         Assert.Equal("recognition function ok", viewModel.SpeechRecognition.FunctionTestStatus);
         Assert.Equal(1, diagnostics.TranslationConnectionCount);
         Assert.Equal(1, diagnostics.TranslationFunctionCount);
+        Assert.Equal(1, diagnostics.GameCaptionConnectionCount);
+        Assert.Equal(1, diagnostics.GameCaptionFunctionCount);
         Assert.Equal(1, diagnostics.RecognitionConnectionCount);
         Assert.Equal(1, diagnostics.RecognitionFunctionCount);
     }
@@ -478,6 +495,8 @@ public sealed class SettingsViewModelPersistenceTests
     {
         public int TranslationConnectionCount { get; private set; }
         public int TranslationFunctionCount { get; private set; }
+        public int GameCaptionConnectionCount { get; private set; }
+        public int GameCaptionFunctionCount { get; private set; }
         public int RecognitionConnectionCount { get; private set; }
         public int RecognitionFunctionCount { get; private set; }
 
@@ -496,6 +515,25 @@ public sealed class SettingsViewModelPersistenceTests
         {
             TranslationFunctionCount++;
             return Task.FromResult("translation function ok");
+        }
+
+        public Task<string> TestGameCaptionConnectionAsync(
+            TranslationSettingsViewModel translation,
+            GameCaptionSettingsViewModel gameCaption,
+            CancellationToken cancellationToken = default)
+        {
+            GameCaptionConnectionCount++;
+            return Task.FromResult("game caption connection ok");
+        }
+
+        public Task<string> TestGameCaptionFunctionAsync(
+            TranslationSettingsViewModel translation,
+            GameCaptionSettingsViewModel gameCaption,
+            AudioSettingsViewModel audio,
+            CancellationToken cancellationToken = default)
+        {
+            GameCaptionFunctionCount++;
+            return Task.FromResult("game caption function ok");
         }
 
         public Task<string> TestSpeechRecognitionConnectionAsync(

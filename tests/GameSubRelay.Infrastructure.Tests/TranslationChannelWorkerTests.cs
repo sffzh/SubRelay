@@ -12,15 +12,20 @@ namespace GameSubRelay.Infrastructure.Tests;
 
 public class TranslationChannelWorkerTests
 {
-    [Fact]
-    public async Task Worker_sends_audio_frames_and_applies_segments_to_caption_store()
+    [Theory]
+    [InlineData(AudioChannelId.Microphone, "hello", "你好")]
+    [InlineData(AudioChannelId.Monitor, "enemy on the left", "敌人在左边")]
+    public async Task Worker_sends_audio_frames_and_applies_segments_to_caption_store(
+        AudioChannelId channelId,
+        string sourceText,
+        string translatedText)
     {
-        var source = new StubAudioFrameSource(AudioChannelId.Microphone);
+        var source = new StubAudioFrameSource(channelId);
         var session = new StubSpeechTranslationSession();
         var provider = new StubSpeechTranslationProvider(session);
         var store = new CaptionStore();
         var worker = new TranslationChannelWorker(
-            AudioChannelId.Microphone,
+            channelId,
             source,
             provider,
             new SpeechTranslationSessionOptions("en", "zh", "cn-north-1"),
@@ -28,14 +33,14 @@ public class TranslationChannelWorkerTests
             NullLogger<TranslationChannelWorker>.Instance);
 
         await worker.StartAsync();
-        await source.EmitAsync(new AudioFrame(AudioChannelId.Microphone, [1, 2, 3], DateTimeOffset.UtcNow, TimeSpan.FromMilliseconds(100)));
+        await source.EmitAsync(new AudioFrame(channelId, [1, 2, 3], DateTimeOffset.UtcNow, TimeSpan.FromMilliseconds(100)));
         await session.EmitAsync(new TranslationSegment(
-            AudioChannelId.Microphone,
+            channelId,
             1,
             "en",
             "zh",
-            "hello",
-            "你好",
+            sourceText,
+            translatedText,
             SegmentStability.Final,
             TimeSpan.Zero,
             TimeSpan.FromMilliseconds(100)));
@@ -46,8 +51,9 @@ public class TranslationChannelWorkerTests
         session.SentFrames.Should().ContainSingle();
         session.ReadCancellationWasRequestedWhenCompleted.Should().BeFalse();
         store.GetSnapshot().Should().ContainSingle(line =>
-            line.SourceText == "hello" &&
-            line.TranslatedText == "你好" &&
+            line.ChannelId == channelId &&
+            line.SourceText == sourceText &&
+            line.TranslatedText == translatedText &&
             line.Stability == SegmentStability.Final);
     }
 

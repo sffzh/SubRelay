@@ -1,0 +1,36 @@
+<UserControl
+    x:Class="GameSubRelay.App.Settings.SpeechServicesSettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:settings="clr-namespace:GameSubRelay.App.Settings">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="24 24 24 8">
+            <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="语音服务" />
+            <TextBlock
+                Margin="0 6 0 0"
+                Style="{StaticResource MutedTextStyle}"
+                Text="分别配置 AST 双通道：麦克风用于同声传译 s2s，游戏/系统声音用于游戏语音字幕 s2t。" />
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <settings:TranslationSettingsView
+                Grid.Column="0"
+                DataContext="{Binding Translation}" />
+
+            <settings:GameCaptionSettingsView
+                Grid.Column="2"
+                DataContext="{Binding GameCaption}" />
+        </Grid>
+    </Grid>
+</UserControl>

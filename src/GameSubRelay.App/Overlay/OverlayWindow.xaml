@@ -89,19 +89,47 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <TextBlock Text="{Binding MonitorCaption.ChannelLabel}"
                                    Foreground="#D0FFFFFF"
                                    FontSize="14"
                                    FontWeight="SemiBold"
                                    Margin="0 0 0 4" />
-                        <TextBlock Grid.Row="1"
-                                   Text="{Binding MonitorCaption.PrimaryText}"
-                                   Foreground="White"
-                                   FontSize="{Binding Settings.FontSize}"
-                                   TextWrapping="Wrap"
-                                   TextTrimming="CharacterEllipsis"
-                                   VerticalAlignment="Center" />
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="原始"
+                                       Foreground="#A6FFFFFF"
+                                       FontSize="13"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding MonitorCaption.SourceText}"
+                                       Foreground="White"
+                                       FontSize="{Binding Settings.FontSize}"
+                                       TextWrapping="Wrap"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="翻译"
+                                       Foreground="#A6FFFFFF"
+                                       FontSize="13"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding MonitorCaption.TranslatedText}"
+                                       Foreground="White"
+                                       FontSize="{Binding Settings.FontSize}"
+                                       TextWrapping="Wrap"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" />
+                        </Grid>
                     </Grid>
                 </Border>
 

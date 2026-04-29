@@ -18,6 +18,8 @@ public sealed class JsonSettingsStoreTests
 
             Assert.Equal("en", settings.Translation.SourceLanguage);
             Assert.Equal("zh", settings.Translation.TargetLanguage);
+            Assert.Equal("en", settings.GameCaption.SourceLanguage);
+            Assert.Equal("zh", settings.GameCaption.TargetLanguage);
             Assert.Equal("en", settings.SpeechRecognition.Language);
             Assert.Equal(6, settings.Overlay.MaxLines);
             Assert.False(File.Exists(Path.Combine(directory, "settings.json")));
@@ -76,6 +78,7 @@ public sealed class JsonSettingsStoreTests
             Assert.True(File.Exists(file.FullName));
             var loaded = await store.LoadSettingsAsync();
             Assert.Equal("cn-north-1", loaded.Translation.Region);
+            Assert.Equal("cn-north-1", loaded.GameCaption.Region);
             Assert.Equal("cn-north-1", loaded.SpeechRecognition.Region);
         }
         finally
@@ -137,6 +140,8 @@ public sealed class JsonSettingsStoreTests
             Assert.True(settings.Audio.TtsEnabled);
             Assert.True(settings.Audio.TtsForMicrophone);
             Assert.Equal("en", settings.SpeechRecognition.Language);
+            Assert.Equal("en", settings.GameCaption.SourceLanguage);
+            Assert.Equal("zh", settings.GameCaption.TargetLanguage);
         }
         finally
         {

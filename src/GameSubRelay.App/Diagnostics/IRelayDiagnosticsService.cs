@@ -13,6 +13,17 @@ public interface IRelayDiagnosticsService
         AudioSettingsViewModel audio,
         CancellationToken cancellationToken = default);
 
+    Task<string> TestGameCaptionConnectionAsync(
+        TranslationSettingsViewModel translation,
+        GameCaptionSettingsViewModel gameCaption,
+        CancellationToken cancellationToken = default);
+
+    Task<string> TestGameCaptionFunctionAsync(
+        TranslationSettingsViewModel translation,
+        GameCaptionSettingsViewModel gameCaption,
+        AudioSettingsViewModel audio,
+        CancellationToken cancellationToken = default);
+
     Task<string> TestSpeechRecognitionConnectionAsync(
         SpeechRecognitionSettingsViewModel speechRecognition,
         CancellationToken cancellationToken = default);
