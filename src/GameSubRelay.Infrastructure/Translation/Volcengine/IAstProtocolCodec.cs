@@ -37,11 +37,11 @@ public sealed class VolcengineAstProtobufProtocolCodec : IAstProtocolCodec
             }
 
             writer.WriteMessage(3, EncodeUser());
-            writer.WriteMessage(4, EncodeAudio(message.SessionConfig.SourceAudio ?? AstAudioConfig.Pcm16Mono16Khz, null));
+            writer.WriteMessage(4, EncodeAudio(message.SessionConfig.SourceAudio ?? AstAudioConfig.SourceWavPcm16Mono16Khz, null));
 
             if (string.Equals(message.SessionConfig.Mode, "s2s", StringComparison.OrdinalIgnoreCase))
             {
-                writer.WriteMessage(5, EncodeAudio(message.SessionConfig.TargetAudio ?? AstAudioConfig.Pcm16Mono16Khz, null));
+                writer.WriteMessage(5, EncodeAudio(message.SessionConfig.TargetAudio ?? AstAudioConfig.TargetPcm16Mono16Khz, null));
             }
 
             writer.WriteMessage(6, EncodeRequestParams(message.SessionConfig));
@@ -53,7 +53,7 @@ public sealed class VolcengineAstProtobufProtocolCodec : IAstProtocolCodec
                 throw new InvalidOperationException("AST TaskRequest requires audio data.");
             }
 
-            writer.WriteMessage(4, EncodeAudio(AstAudioConfig.Pcm16Mono16Khz, message.AudioData));
+            writer.WriteMessage(4, EncodeAudio(AstAudioConfig.SourceWavPcm16Mono16Khz, message.AudioData));
         }
 
         return writer.ToArray();

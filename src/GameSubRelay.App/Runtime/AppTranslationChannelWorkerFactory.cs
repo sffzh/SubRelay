@@ -32,6 +32,8 @@ public sealed class AppTranslationChannelWorkerFactory : ITranslationChannelWork
     {
         var workers = new List<ITranslationChannelWorker>();
         var logger = _loggerFactory.CreateLogger<TranslationChannelWorker>();
+        var astLogger = _loggerFactory.CreateLogger<VolcengineAstSpeechTranslationProvider>();
+        var asrLogger = _loggerFactory.CreateLogger<VolcengineStreamingAsrProvider>();
 
         if (_settings.Audio.MicrophoneEnabled)
         {
@@ -40,9 +42,13 @@ public sealed class AppTranslationChannelWorkerFactory : ITranslationChannelWork
                     _settings.Translation.AccessKeyId,
                     _settings.Translation.SecretAccessKey),
                 new VolcengineAstProtobufProtocolCodec(),
-                () => new ClientWebSocketAstTransport(),
-                new AudioOutputDevicePlayer(_deviceService),
-                NormalizeDeviceId(_settings.Audio.SelectedTtsOutputDevice));
+                () => new ClientWebSocketAstTransport(
+                    logger: _loggerFactory.CreateLogger<ClientWebSocketAstTransport>()),
+                new AudioOutputDevicePlayer(
+                    _deviceService,
+                    _loggerFactory.CreateLogger<AudioOutputDevicePlayer>()),
+                NormalizeDeviceId(_settings.Audio.SelectedTtsOutputDevice),
+                astLogger);
             var astSessionOptions = new SpeechTranslationSessionOptions(
                 _settings.Translation.SourceLanguage,
                 _settings.Translation.TargetLanguage,
@@ -61,7 +67,11 @@ public sealed class AppTranslationChannelWorkerFactory : ITranslationChannelWork
         {
             var asrProvider = new VolcengineStreamingAsrProvider(new VolcengineStreamingAsrOptions(
                 _settings.Translation.AccessKeyId,
-                _settings.Translation.SecretAccessKey));
+                _settings.Translation.SecretAccessKey),
+                new VolcengineStreamingAsrProtocolCodec(),
+                () => new ClientWebSocketStreamingAsrTransport(
+                    logger: _loggerFactory.CreateLogger<ClientWebSocketStreamingAsrTransport>()),
+                asrLogger);
             var asrSessionOptions = new SpeechTranslationSessionOptions(
                 _settings.Translation.SourceLanguage,
                 _settings.Translation.TargetLanguage,
@@ -88,7 +98,10 @@ public sealed class AppTranslationChannelWorkerFactory : ITranslationChannelWork
     {
         return new TranslationChannelWorker(
             channelId,
-            new CaptureAudioFrameSource(channelId, captureService),
+            new CaptureAudioFrameSource(
+                channelId,
+                captureService,
+                _loggerFactory.CreateLogger<CaptureAudioFrameSource>()),
             provider,
             sessionOptions,
             _captionStore,

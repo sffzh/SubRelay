@@ -1,6 +1,8 @@
 using GameSubRelay.App.ViewModels;
 using GameSubRelay.Core.Configuration;
+using GameSubRelay.Core.Runtime;
 using GameSubRelay.Infrastructure.Audio;
+using GameSubRelay.Infrastructure.Runtime;
 using NAudio.CoreAudioApi;
 using Xunit;
 
@@ -201,6 +203,39 @@ public sealed class SettingsViewModelPersistenceTests
     }
 
     [Fact]
+    public void Relay_commands_start_and_stop_runtime_on_request()
+    {
+        var runtimeService = new RecordingRuntimeService();
+        var viewModel = new SettingsViewModel(
+            new OverlayViewModel(),
+            new InMemorySettingsStore(AppSettings.Default),
+            new InMemorySecretStore(SecretSettings.Empty),
+            null,
+            runtimeService);
+
+        Assert.False(viewModel.IsRelayRunning);
+        Assert.Equal("同传已停止", viewModel.RelayStateText);
+        Assert.True(viewModel.StartRelayCommand.CanExecute(null));
+        Assert.False(viewModel.StopRelayCommand.CanExecute(null));
+
+        viewModel.StartRelayCommand.Execute(null);
+
+        Assert.True(viewModel.IsRelayRunning);
+        Assert.Equal(1, runtimeService.StartCount);
+        Assert.Equal("同传运行中", viewModel.RelayStateText);
+        Assert.False(viewModel.StartRelayCommand.CanExecute(null));
+        Assert.True(viewModel.StopRelayCommand.CanExecute(null));
+
+        viewModel.StopRelayCommand.Execute(null);
+
+        Assert.False(viewModel.IsRelayRunning);
+        Assert.Equal(1, runtimeService.StopCount);
+        Assert.Equal("同传已停止", viewModel.RelayStateText);
+        Assert.True(viewModel.StartRelayCommand.CanExecute(null));
+        Assert.False(viewModel.StopRelayCommand.CanExecute(null));
+    }
+
+    [Fact]
     public async Task LoadAsync_prefers_real_default_device_over_stale_saved_device()
     {
         var settings = AppSettings.Default with
@@ -280,6 +315,39 @@ public sealed class SettingsViewModelPersistenceTests
         {
             SavedSecrets = secrets;
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingRuntimeService : IAppRuntimeService
+    {
+        public event EventHandler<ChannelRuntimeState> ChannelStateChanged = delegate { };
+
+        public bool IsRunning { get; private set; }
+
+        public int StartCount { get; private set; }
+
+        public int StopCount { get; private set; }
+
+        public int RestartCount { get; private set; }
+
+        public Task StartRelayAsync(CancellationToken cancellationToken = default)
+        {
+            StartCount++;
+            IsRunning = true;
+            return Task.CompletedTask;
+        }
+
+        public Task StopRelayAsync(CancellationToken cancellationToken = default)
+        {
+            StopCount++;
+            IsRunning = false;
+            return Task.CompletedTask;
+        }
+
+        public Task RestartAsync(CancellationToken cancellationToken = default)
+        {
+            RestartCount++;
+            return Task.CompletedTask;
         }
     }
 

@@ -3,6 +3,7 @@ using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Captions;
 using GameSubRelay.Core.Translation;
 using GameSubRelay.Infrastructure.Translation.Volcengine;
+using System.Text;
 using Xunit;
 
 namespace GameSubRelay.Infrastructure.Tests;
@@ -16,11 +17,12 @@ public class VolcengineAstTranslationTests
             AppKey: "app-key",
             AccessKey: "access-key");
 
-        var headers = options.CreateHeaders();
+        var headers = options.CreateHeaders("connect-id");
 
         headers.Should().Contain("X-Api-App-Key", "app-key");
         headers.Should().Contain("X-Api-Access-Key", "access-key");
         headers.Should().Contain("X-Api-Resource-Id", VolcengineAstProviderOptions.DefaultResourceId);
+        headers.Should().Contain("X-Api-Connect-Id", "connect-id");
         headers.Keys.Should().OnlyContain(key => key.StartsWith("X-Api-", StringComparison.Ordinal));
     }
 
@@ -116,6 +118,7 @@ public class VolcengineAstTranslationTests
 
         transport.ConnectedUri.Should().Be(VolcengineAstProviderOptions.DefaultEndpoint);
         transport.Headers.Should().Contain("X-Api-App-Key", "app-key");
+        transport.Headers.Should().ContainKey("X-Api-Connect-Id");
         codec.EncodedMessages.Should().ContainSingle(message => message.Event == AstClientEventType.StartSession);
         codec.EncodedMessages[0].SessionConfig.Should().NotBeNull();
         codec.EncodedMessages[0].SessionConfig!.SourceLanguage.Should().Be("en");
@@ -149,6 +152,8 @@ public class VolcengineAstTranslationTests
             Mode: "s2s")));
 
         encoded.Length.Should().BeGreaterThan(0);
+        Encoding.UTF8.GetString(encoded.Span).Should().Contain("wav");
+        Encoding.UTF8.GetString(encoded.Span).Should().Contain("pcm");
 
         var decoded = codec.Decode(CreateAstResponsePayload(
             AstServerEventType.TTSResponse,

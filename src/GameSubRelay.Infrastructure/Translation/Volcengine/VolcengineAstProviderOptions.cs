@@ -43,15 +43,20 @@ public sealed record VolcengineAstProviderOptions
             Environment.GetEnvironmentVariable(ResourceIdEnvironmentVariable));
     }
 
-    public IReadOnlyDictionary<string, string> CreateHeaders()
+    public IReadOnlyDictionary<string, string> CreateHeaders(string connectId)
     {
         EnsureCredentialsPresent();
+        if (string.IsNullOrWhiteSpace(connectId))
+        {
+            throw new ArgumentException("Connect id is required for AST tracing.", nameof(connectId));
+        }
 
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["X-Api-App-Key"] = AppKey,
             ["X-Api-Access-Key"] = AccessKey,
-            ["X-Api-Resource-Id"] = ResourceId
+            ["X-Api-Resource-Id"] = ResourceId,
+            ["X-Api-Connect-Id"] = connectId
         };
     }
 

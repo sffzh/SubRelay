@@ -22,11 +22,17 @@
                     <TextBlock Text="GameSubRelay" FontSize="22" FontWeight="SemiBold" />
                     <TextBlock Text="配置音频、翻译、字幕浮层和快捷键" Foreground="#586069" />
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="打开字幕浮层" Width="112" Margin="0 0 8 0" Command="{Binding OpenOverlayCommand}" />
+                <WrapPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock Text="{Binding RelayStateText}"
+                               VerticalAlignment="Center"
+                               Foreground="#586069"
+                               Margin="0 0 10 0" />
+                    <Button Content="开始同传" Width="88" Margin="0 0 8 0" Command="{Binding StartRelayCommand}" />
+                    <Button Content="停止同传" Width="88" Margin="0 0 12 0" Command="{Binding StopRelayCommand}" />
+                    <Button Content="打开浮层" Width="88" Margin="0 0 8 0" Command="{Binding OpenOverlayCommand}" />
                     <Button Content="{Binding OverlayLockText}" Width="112" Margin="0 0 8 0" Command="{Binding ToggleOverlayLockCommand}" />
-                    <Button Content="隐藏字幕浮层" Width="112" Command="{Binding HideOverlayCommand}" />
-                </StackPanel>
+                    <Button Content="隐藏浮层" Width="88" Command="{Binding HideOverlayCommand}" />
+                </WrapPanel>
             </Grid>
         </Border>
 

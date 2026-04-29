@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace GameSubRelay.Infrastructure.Translation.Volcengine;
 
@@ -37,15 +38,24 @@ public interface IStreamingAsrWebSocketTransport : IAsyncDisposable
 public sealed class ClientWebSocketStreamingAsrTransport : IStreamingAsrWebSocketTransport
 {
     private readonly ClientWebSocket _webSocket;
+    private readonly ILogger<ClientWebSocketStreamingAsrTransport>? _logger;
 
     public ClientWebSocketStreamingAsrTransport()
         : this(new ClientWebSocket())
     {
     }
 
-    public ClientWebSocketStreamingAsrTransport(ClientWebSocket webSocket)
+    public ClientWebSocketStreamingAsrTransport(ILogger<ClientWebSocketStreamingAsrTransport>? logger)
+        : this(new ClientWebSocket(), logger)
+    {
+    }
+
+    public ClientWebSocketStreamingAsrTransport(
+        ClientWebSocket webSocket,
+        ILogger<ClientWebSocketStreamingAsrTransport>? logger = null)
     {
         _webSocket = webSocket;
+        _logger = logger;
     }
 
     public async Task ConnectAsync(
@@ -53,16 +63,39 @@ public sealed class ClientWebSocketStreamingAsrTransport : IStreamingAsrWebSocke
         IReadOnlyDictionary<string, string> headers,
         CancellationToken cancellationToken)
     {
+        _logger?.LogInformation(
+            "Streaming ASR WebSocket connecting to {Endpoint}; headers: {Headers}",
+            endpoint,
+            VolcengineLogFormatter.FormatHeaders(headers));
+
         foreach (var header in headers)
         {
             _webSocket.Options.SetRequestHeader(header.Key, header.Value);
         }
 
-        await _webSocket.ConnectAsync(endpoint, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _webSocket.ConnectAsync(endpoint, cancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation(
+                "Streaming ASR WebSocket connected to {Endpoint}; state={State}",
+                endpoint,
+                _webSocket.State);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(
+                ex,
+                "Streaming ASR WebSocket handshake failed for {Endpoint}; hint={Hint}; headers: {Headers}",
+                endpoint,
+                VolcengineLogFormatter.FormatHandshakeFailureHint(ex),
+                VolcengineLogFormatter.FormatHeaders(headers));
+            throw;
+        }
     }
 
     public async ValueTask SendAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
+        _logger?.LogDebug("Streaming ASR WebSocket sending {PayloadBytes} bytes.", payload.Length);
         await _webSocket
             .SendAsync(payload, WebSocketMessageType.Binary, endOfMessage: true, cancellationToken)
             .ConfigureAwait(false);
@@ -78,6 +111,10 @@ public sealed class ClientWebSocketStreamingAsrTransport : IStreamingAsrWebSocke
             var result = await _webSocket.ReceiveAsync(buffer, cancellationToken).ConfigureAwait(false);
             if (result.MessageType == WebSocketMessageType.Close)
             {
+                _logger?.LogInformation(
+                    "Streaming ASR WebSocket close received: status={CloseStatus}, description={CloseDescription}.",
+                    result.CloseStatus,
+                    result.CloseStatusDescription);
                 return null;
             }
 
@@ -90,7 +127,9 @@ public sealed class ClientWebSocketStreamingAsrTransport : IStreamingAsrWebSocke
             stream.Write(buffer, 0, result.Count);
             if (result.EndOfMessage)
             {
-                return stream.ToArray();
+                var payload = stream.ToArray();
+                _logger?.LogDebug("Streaming ASR WebSocket received {PayloadBytes} bytes.", payload.Length);
+                return payload;
             }
         }
     }
@@ -112,6 +151,7 @@ public sealed class ClientWebSocketStreamingAsrTransport : IStreamingAsrWebSocke
         }
 
         _webSocket.Dispose();
+        _logger?.LogInformation("Streaming ASR WebSocket disposed.");
     }
 }
 

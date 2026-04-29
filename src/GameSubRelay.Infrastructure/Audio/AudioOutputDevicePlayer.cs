@@ -1,12 +1,14 @@
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using GameSubRelay.Infrastructure.Windows;
+using Microsoft.Extensions.Logging;
 
 namespace GameSubRelay.Infrastructure.Audio;
 
 public sealed class AudioOutputDevicePlayer : IAudioOutputPlayer
 {
     private readonly INaudioDeviceService _deviceService;
+    private readonly ILogger<AudioOutputDevicePlayer>? _logger;
     private readonly object _sync = new();
 
     private WasapiOut? _output;
@@ -16,9 +18,11 @@ public sealed class AudioOutputDevicePlayer : IAudioOutputPlayer
     private string? _activeDeviceId;
 
     public AudioOutputDevicePlayer(
-        INaudioDeviceService deviceService)
+        INaudioDeviceService deviceService,
+        ILogger<AudioOutputDevicePlayer>? logger = null)
     {
         _deviceService = deviceService;
+        _logger = logger;
     }
 
     public bool IsRunning => _isRunning;
@@ -34,6 +38,10 @@ public sealed class AudioOutputDevicePlayer : IAudioOutputPlayer
         {
             return;
         }
+
+        _logger?.LogInformation(
+            "Starting audio output player on render device {RenderDeviceId}.",
+            string.IsNullOrWhiteSpace(renderDeviceId) ? "<default>" : renderDeviceId);
 
         lock (_sync)
         {
@@ -66,6 +74,9 @@ public sealed class AudioOutputDevicePlayer : IAudioOutputPlayer
             _output.Init(_bufferedProvider);
             _output.Play();
             _isRunning = true;
+            _logger?.LogInformation(
+                "Audio output player started on render device {RenderDeviceId}.",
+                string.IsNullOrWhiteSpace(device.ID) ? "<unknown>" : device.ID);
         }
     }
 
@@ -95,10 +106,17 @@ public sealed class AudioOutputDevicePlayer : IAudioOutputPlayer
 
             if (_bufferedProvider.BufferedBytes + pcm16Mono16Khz.Length > _bufferedProvider.BufferLength)
             {
+                _logger?.LogWarning(
+                    "Audio output buffer overflow risk; clearing buffer before adding {Bytes} bytes.",
+                    pcm16Mono16Khz.Length);
                 _bufferedProvider.ClearBuffer();
             }
 
             _bufferedProvider.AddSamples(pcm16Mono16Khz, 0, pcm16Mono16Khz.Length);
+            _logger?.LogDebug(
+                "Queued {Bytes} bytes for audio output; bufferedBytes={BufferedBytes}.",
+                pcm16Mono16Khz.Length,
+                _bufferedProvider.BufferedBytes);
         }
     }
 
@@ -114,6 +132,7 @@ public sealed class AudioOutputDevicePlayer : IAudioOutputPlayer
             StopLocked();
         }
 
+        _logger?.LogInformation("Audio output player stopped.");
         await Task.CompletedTask;
     }
 

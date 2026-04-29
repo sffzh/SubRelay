@@ -45,7 +45,7 @@
                 <TextBox Grid.Row="3" Grid.Column="1" Margin="0 12 0 0" Text="{Binding Region}" />
             </Grid>
 
-            <TextBlock Text="火山凭据" FontWeight="SemiBold" Margin="0 10 0 0" />
+            <TextBlock Text="火山同声传译凭据" FontWeight="SemiBold" Margin="0 10 0 0" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="170" />
@@ -56,10 +56,10 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="App Key" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Text="APP ID" VerticalAlignment="Center" />
                 <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding AccessKeyId}" />
 
-                <TextBlock Grid.Row="1" Text="Access Key" VerticalAlignment="Center" Margin="0 12 0 0" />
+                <TextBlock Grid.Row="1" Text="Access Token" VerticalAlignment="Center" Margin="0 12 0 0" />
                 <PasswordBox x:Name="SecretAccessKeyBox"
                              Grid.Row="1"
                              Grid.Column="1"

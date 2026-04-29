@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using GameSubRelay.App.Overlay;
 using GameSubRelay.App.ViewModels;
 using GameSubRelay.App.Runtime;
+using GameSubRelay.App.Logging;
 using GameSubRelay.Core.Captions;
 using GameSubRelay.Infrastructure.Hotkeys;
 using GameSubRelay.Infrastructure.Runtime;
@@ -27,6 +28,9 @@ public partial class App : Application
         var settingsViewModel = _host.Services.GetRequiredService<SettingsViewModel>();
         var overlayViewModel = _host.Services.GetRequiredService<OverlayViewModel>();
         var captionStore = _host.Services.GetRequiredService<CaptionStore>();
+        settingsViewModel.AttachRuntimeService(runtimeService);
+
+        logger.LogInformation("GameSubRelay starting. Log file: {LogFile}", AppLogPaths.DefaultLogFilePath);
 
         captionStore.CaptionLinesChanged += (_, args) =>
         {
@@ -51,9 +55,19 @@ public partial class App : Application
         {
             try
             {
+                if (!runtimeService.IsRunning)
+                {
+                    logger.LogInformation("Settings saved while relay is stopped. Channels remain stopped.");
+                    settingsViewModel.SetStatus("配置已保存；同声传译未启动");
+                    return;
+                }
+
                 settingsViewModel.SetStatus("配置已保存，正在重启语音通道...");
+                logger.LogInformation("Settings saved. Restarting runtime channels.");
                 await runtimeService.RestartAsync();
-                settingsViewModel.SetStatus("语音通道已按当前配置重启");
+                settingsViewModel.SetStatus(runtimeService.IsRunning
+                    ? "语音通道已按当前配置重启"
+                    : "语音通道重启失败，请查看日志");
             }
             catch (Exception ex)
             {

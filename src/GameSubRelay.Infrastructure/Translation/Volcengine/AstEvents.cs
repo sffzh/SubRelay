@@ -43,7 +43,9 @@ public sealed record AstAudioConfig(
     int Channel = 1,
     string Codec = "raw")
 {
-    public static AstAudioConfig Pcm16Mono16Khz { get; } = new("pcm", 16_000);
+    public static AstAudioConfig SourceWavPcm16Mono16Khz { get; } = new("wav", 16_000);
+
+    public static AstAudioConfig TargetPcm16Mono16Khz { get; } = new("pcm", 16_000);
 }
 
 public sealed record AstRequestMeta(

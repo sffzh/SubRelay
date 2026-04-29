@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using GameSubRelay.Core.Configuration;
 using GameSubRelay.Infrastructure.Audio;
+using GameSubRelay.Infrastructure.Runtime;
 
 namespace GameSubRelay.App.ViewModels;
 
@@ -185,7 +186,7 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
     private void TestConnection()
     {
         ConnectionTestStatus = string.IsNullOrWhiteSpace(AccessKeyId) || string.IsNullOrWhiteSpace(SecretAccessKey)
-            ? "请填写火山 App Key 和 Access Key"
+            ? "请填写火山同声传译 APP ID 和 Access Token"
             : "凭据已填写；AST 与 ASR 连通性会在通道启动时验证";
     }
 
@@ -274,13 +275,16 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly ISettingsStore _settingsStore;
     private readonly ISecretStore _secretStore;
     private readonly INaudioDeviceService? _audioDeviceService;
+    private IAppRuntimeService? _runtimeService;
     private string _statusText = string.Empty;
+    private bool _isRelayRunning;
+    private bool _isRelayBusy;
 
     public SettingsViewModel(
         OverlayViewModel overlayViewModel,
         ISettingsStore settingsStore,
         ISecretStore secretStore)
-        : this(overlayViewModel, settingsStore, secretStore, null)
+        : this(overlayViewModel, settingsStore, secretStore, null, null)
     {
     }
 
@@ -289,11 +293,23 @@ public sealed class SettingsViewModel : ViewModelBase
         ISettingsStore settingsStore,
         ISecretStore secretStore,
         INaudioDeviceService? audioDeviceService)
+        : this(overlayViewModel, settingsStore, secretStore, audioDeviceService, null)
+    {
+    }
+
+    public SettingsViewModel(
+        OverlayViewModel overlayViewModel,
+        ISettingsStore settingsStore,
+        ISecretStore secretStore,
+        INaudioDeviceService? audioDeviceService,
+        IAppRuntimeService? runtimeService)
     {
         _overlayViewModel = overlayViewModel;
         _settingsStore = settingsStore;
         _secretStore = secretStore;
         _audioDeviceService = audioDeviceService;
+        _runtimeService = runtimeService;
+        _isRelayRunning = runtimeService?.IsRunning ?? false;
         Audio = new AudioSettingsViewModel();
         Translation = new TranslationSettingsViewModel();
         Overlay = overlayViewModel.Settings;
@@ -301,6 +317,8 @@ public sealed class SettingsViewModel : ViewModelBase
         Hotkeys = new HotkeySettingsViewModel();
         ApplyCommand = new RelayCommand(Apply);
         SaveCommand = new RelayCommand(async () => await SaveCommandAsync());
+        StartRelayCommand = new RelayCommand(async () => await StartRelayCommandAsync(), CanStartRelay);
+        StopRelayCommand = new RelayCommand(async () => await StopRelayCommandAsync(), CanStopRelay);
         RefreshAudioDevicesCommand = new RelayCommand(async () => await RefreshAudioDevicesCommandAsync());
         OpenOverlayCommand = new RelayCommand(OpenOverlay);
         HideOverlayCommand = new RelayCommand(HideOverlay);
@@ -321,6 +339,8 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public RelayCommand ApplyCommand { get; }
     public RelayCommand SaveCommand { get; }
+    public RelayCommand StartRelayCommand { get; }
+    public RelayCommand StopRelayCommand { get; }
     public RelayCommand RefreshAudioDevicesCommand { get; }
     public RelayCommand OpenOverlayCommand { get; }
     public RelayCommand HideOverlayCommand { get; }
@@ -329,6 +349,40 @@ public sealed class SettingsViewModel : ViewModelBase
     public event EventHandler? SettingsSaved;
 
     public string OverlayLockText => IsEditMode ? "锁定字幕浮层" : "解锁字幕浮层";
+
+    public void AttachRuntimeService(IAppRuntimeService runtimeService)
+    {
+        _runtimeService = runtimeService ?? throw new ArgumentNullException(nameof(runtimeService));
+        IsRelayRunning = runtimeService.IsRunning;
+        RefreshRelayCommands();
+    }
+
+    public bool IsRelayRunning
+    {
+        get => _isRelayRunning;
+        private set
+        {
+            if (SetProperty(ref _isRelayRunning, value))
+            {
+                OnPropertyChanged(nameof(RelayStateText));
+                RefreshRelayCommands();
+            }
+        }
+    }
+
+    public bool IsRelayBusy
+    {
+        get => _isRelayBusy;
+        private set
+        {
+            if (SetProperty(ref _isRelayBusy, value))
+            {
+                RefreshRelayCommands();
+            }
+        }
+    }
+
+    public string RelayStateText => IsRelayRunning ? "同传运行中" : "同传已停止";
 
     public string StatusText
     {
@@ -436,6 +490,77 @@ public sealed class SettingsViewModel : ViewModelBase
         {
             StatusText = $"保存失败：{ex.Message}";
         }
+    }
+
+    private async Task StartRelayCommandAsync()
+    {
+        if (_runtimeService is null)
+        {
+            StatusText = "运行时服务未启用";
+            return;
+        }
+
+        IsRelayBusy = true;
+        try
+        {
+            Apply();
+            StatusText = "正在开始同声传译...";
+            await _runtimeService.StartRelayAsync();
+            IsRelayRunning = _runtimeService.IsRunning;
+            StatusText = IsRelayRunning ? "同声传译已开始" : "同声传译启动失败，请查看日志";
+        }
+        catch (Exception ex)
+        {
+            IsRelayRunning = _runtimeService.IsRunning;
+            StatusText = $"开始失败：{ex.Message}";
+        }
+        finally
+        {
+            IsRelayBusy = false;
+        }
+    }
+
+    private async Task StopRelayCommandAsync()
+    {
+        if (_runtimeService is null)
+        {
+            StatusText = "运行时服务未启用";
+            return;
+        }
+
+        IsRelayBusy = true;
+        try
+        {
+            StatusText = "正在停止同声传译...";
+            await _runtimeService.StopRelayAsync();
+            IsRelayRunning = _runtimeService.IsRunning;
+            StatusText = "同声传译已停止";
+        }
+        catch (Exception ex)
+        {
+            IsRelayRunning = _runtimeService.IsRunning;
+            StatusText = $"停止失败：{ex.Message}";
+        }
+        finally
+        {
+            IsRelayBusy = false;
+        }
+    }
+
+    private bool CanStartRelay()
+    {
+        return _runtimeService is not null && !IsRelayRunning && !IsRelayBusy;
+    }
+
+    private bool CanStopRelay()
+    {
+        return _runtimeService is not null && IsRelayRunning && !IsRelayBusy;
+    }
+
+    private void RefreshRelayCommands()
+    {
+        StartRelayCommand.RaiseCanExecuteChanged();
+        StopRelayCommand.RaiseCanExecuteChanged();
     }
 
     private void OpenOverlay()

@@ -68,7 +68,12 @@ public sealed class TranslationChannelWorker : ITranslationChannelWorker, IAsync
             _runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         }
 
-        _logger.LogInformation("Start channel {ChannelId}", ChannelId);
+        _logger.LogInformation(
+            "Start channel {ChannelId}: mode={Mode}, language={SourceLanguage}->{TargetLanguage}.",
+            ChannelId,
+            _sessionOptions?.Mode ?? "<none>",
+            _sessionOptions?.SourceLanguage ?? "<none>",
+            _sessionOptions?.TargetLanguage ?? "<none>");
         StateChanged?.Invoke(this, EventArgs.Empty);
 
         if (_frameSource is null || _translationProvider is null || _sessionOptions is null || _captionStore is null)
@@ -80,14 +85,18 @@ public sealed class TranslationChannelWorker : ITranslationChannelWorker, IAsync
         {
             var runToken = _runCts!.Token;
             await _frameSource.StartAsync(runToken);
+            _logger.LogInformation("Audio frame source started for channel {ChannelId}.", ChannelId);
             _session = await _translationProvider.StartSessionAsync(ChannelId, _sessionOptions, runToken);
+            _logger.LogInformation("Translation session started for channel {ChannelId}.", ChannelId);
 
             _sendLoop = Task.Run(() => SendLoopAsync(runToken), CancellationToken.None);
             _readLoop = Task.Run(() => ReadLoopAsync(runToken), CancellationToken.None);
+            _logger.LogInformation("Channel {ChannelId} send/read loops started.", ChannelId);
         }
-        catch
+        catch (Exception ex)
         {
             await StopAsync(CancellationToken.None);
+            _logger.LogError(ex, "Failed while starting channel {ChannelId}.", ChannelId);
             throw;
         }
     }
@@ -119,7 +128,7 @@ public sealed class TranslationChannelWorker : ITranslationChannelWorker, IAsync
             _readLoop = null;
         }
 
-        _logger.LogInformation("Stop channel {ChannelId}", ChannelId);
+        _logger.LogInformation("Stop channel {ChannelId}.", ChannelId);
         runCts?.Cancel();
 
         if (frameSource is not null)
@@ -129,6 +138,7 @@ public sealed class TranslationChannelWorker : ITranslationChannelWorker, IAsync
 
         if (session is not null)
         {
+            _logger.LogInformation("Completing translation session for channel {ChannelId}.", ChannelId);
             await session.CompleteAsync(cancellationToken);
             await session.DisposeAsync();
         }
@@ -146,9 +156,31 @@ public sealed class TranslationChannelWorker : ITranslationChannelWorker, IAsync
             return;
         }
 
-        await foreach (var frame in _frameSource.GetFramesAsync(cancellationToken))
+        long framesSent = 0;
+        long bytesSent = 0;
+        try
         {
-            await _session.SendAudioAsync(frame, cancellationToken);
+            await foreach (var frame in _frameSource.GetFramesAsync(cancellationToken))
+            {
+                await _session.SendAudioAsync(frame, cancellationToken);
+                framesSent++;
+                bytesSent += frame.Pcm16Mono16Khz.Length;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Audio send loop failed for channel {ChannelId}.", ChannelId);
+        }
+        finally
+        {
+            _logger.LogInformation(
+                "Audio send loop ended for channel {ChannelId}: frames={Frames}, bytes={Bytes}.",
+                ChannelId,
+                framesSent,
+                bytesSent);
         }
     }
 
@@ -159,9 +191,35 @@ public sealed class TranslationChannelWorker : ITranslationChannelWorker, IAsync
             return;
         }
 
-        await foreach (var segment in _session.ReadSegmentsAsync(cancellationToken))
+        long segmentsRead = 0;
+        try
         {
-            _captionStore.ApplySegment(segment);
+            await foreach (var segment in _session.ReadSegmentsAsync(cancellationToken))
+            {
+                _captionStore.ApplySegment(segment);
+                segmentsRead++;
+                _logger.LogDebug(
+                    "Applied caption segment for channel {ChannelId}: sequence={Sequence}, stability={Stability}, sourceChars={SourceChars}, translatedChars={TranslatedChars}.",
+                    ChannelId,
+                    segment.ProviderSequence,
+                    segment.Stability,
+                    segment.SourceText.Length,
+                    segment.TranslatedText.Length);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Caption read loop failed for channel {ChannelId}.", ChannelId);
+        }
+        finally
+        {
+            _logger.LogInformation(
+                "Caption read loop ended for channel {ChannelId}: segments={Segments}.",
+                ChannelId,
+                segmentsRead);
         }
     }
 

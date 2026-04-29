@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace GameSubRelay.Infrastructure.Translation.Volcengine;
 
@@ -22,15 +23,24 @@ public interface IAstWebSocketTransport : IAsyncDisposable
 public sealed class ClientWebSocketAstTransport : IAstWebSocketTransport
 {
     private readonly ClientWebSocket _webSocket;
+    private readonly ILogger<ClientWebSocketAstTransport>? _logger;
 
     public ClientWebSocketAstTransport()
         : this(new ClientWebSocket())
     {
     }
 
-    public ClientWebSocketAstTransport(ClientWebSocket webSocket)
+    public ClientWebSocketAstTransport(ILogger<ClientWebSocketAstTransport>? logger)
+        : this(new ClientWebSocket(), logger)
+    {
+    }
+
+    public ClientWebSocketAstTransport(
+        ClientWebSocket webSocket,
+        ILogger<ClientWebSocketAstTransport>? logger = null)
     {
         _webSocket = webSocket;
+        _logger = logger;
     }
 
     public async Task ConnectAsync(
@@ -38,16 +48,39 @@ public sealed class ClientWebSocketAstTransport : IAstWebSocketTransport
         IReadOnlyDictionary<string, string> headers,
         CancellationToken cancellationToken)
     {
+        _logger?.LogInformation(
+            "AST WebSocket connecting to {Endpoint}; headers: {Headers}",
+            endpoint,
+            VolcengineLogFormatter.FormatHeaders(headers));
+
         foreach (var header in headers)
         {
             _webSocket.Options.SetRequestHeader(header.Key, header.Value);
         }
 
-        await _webSocket.ConnectAsync(endpoint, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _webSocket.ConnectAsync(endpoint, cancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation(
+                "AST WebSocket connected to {Endpoint}; state={State}",
+                endpoint,
+                _webSocket.State);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(
+                ex,
+                "AST WebSocket handshake failed for {Endpoint}; hint={Hint}; headers: {Headers}",
+                endpoint,
+                VolcengineLogFormatter.FormatHandshakeFailureHint(ex),
+                VolcengineLogFormatter.FormatHeaders(headers));
+            throw;
+        }
     }
 
     public async ValueTask SendAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
+        _logger?.LogDebug("AST WebSocket sending {PayloadBytes} bytes.", payload.Length);
         await _webSocket
             .SendAsync(payload, WebSocketMessageType.Binary, endOfMessage: true, cancellationToken)
             .ConfigureAwait(false);
@@ -66,6 +99,10 @@ public sealed class ClientWebSocketAstTransport : IAstWebSocketTransport
 
             if (result.MessageType == WebSocketMessageType.Close)
             {
+                _logger?.LogInformation(
+                    "AST WebSocket close received: status={CloseStatus}, description={CloseDescription}.",
+                    result.CloseStatus,
+                    result.CloseStatusDescription);
                 return null;
             }
 
@@ -79,7 +116,9 @@ public sealed class ClientWebSocketAstTransport : IAstWebSocketTransport
 
             if (result.EndOfMessage)
             {
-                return stream.ToArray();
+                var payload = stream.ToArray();
+                _logger?.LogDebug("AST WebSocket received {PayloadBytes} bytes.", payload.Length);
+                return payload;
             }
         }
     }
@@ -101,5 +140,6 @@ public sealed class ClientWebSocketAstTransport : IAstWebSocketTransport
         }
 
         _webSocket.Dispose();
+        _logger?.LogInformation("AST WebSocket disposed.");
     }
 }

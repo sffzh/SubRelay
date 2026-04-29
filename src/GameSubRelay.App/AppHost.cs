@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using GameSubRelay.App.Logging;
 using GameSubRelay.App.Overlay;
 using GameSubRelay.App.ViewModels;
 using GameSubRelay.Core.Configuration;
@@ -18,18 +19,30 @@ public static class AppHost
     public static IHost BuildHost(string[]? args)
     {
         return Host.CreateDefaultBuilder(args)
+            .ConfigureLogging((context, logging) =>
+            {
+                logging.ClearProviders();
+                logging.AddDebug();
+                logging.AddConsole();
+                logging.AddProvider(new FileLoggerProvider(AppLogPaths.DefaultLogFilePath));
+                logging.SetMinimumLevel(ResolveMinimumLogLevel(context.Configuration));
+            })
             .ConfigureServices((context, services) =>
             {
                 services.Configure<RuntimeOptions>(context.Configuration.GetSection("Runtime"));
 
                 services.AddSingleton<OverlayViewModel>();
-                services.AddSingleton<SettingsViewModel>();
                 services.AddSingleton<MainWindow>();
                 services.AddSingleton<OverlayWindow>();
                 services.AddSingleton<CaptionStore>();
                 services.AddSingleton<ISettingsStore, JsonSettingsStore>();
                 services.AddSingleton<ISecretStore, DpapiSecretStore>();
                 services.AddSingleton<INaudioDeviceService, NaudioDeviceService>();
+                services.AddSingleton(sp => new SettingsViewModel(
+                    sp.GetRequiredService<OverlayViewModel>(),
+                    sp.GetRequiredService<ISettingsStore>(),
+                    sp.GetRequiredService<ISecretStore>(),
+                    sp.GetRequiredService<INaudioDeviceService>()));
 
                 services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();
                 services.AddSingleton<ITranslationChannelWorkerFactory, AppTranslationChannelWorkerFactory>();
@@ -39,6 +52,18 @@ public static class AppHost
                 services.AddHostedService(sp => sp.GetRequiredService<AppRuntimeService>());
             })
             .Build();
+    }
+
+    private static LogLevel ResolveMinimumLogLevel(IConfiguration configuration)
+    {
+        var configuredLevel =
+            configuration["GameSubRelay:LogLevel"] ??
+            configuration["Logging:LogLevel:Default"] ??
+            Environment.GetEnvironmentVariable("GAMESUBRELAY_LOG_LEVEL");
+
+        return Enum.TryParse<LogLevel>(configuredLevel, ignoreCase: true, out var level)
+            ? level
+            : LogLevel.Debug;
     }
 
     private sealed record RuntimeOptions(bool EnableMicrophoneChannel = true, bool EnableMonitorChannel = true);

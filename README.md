@@ -1,12 +1,28 @@
 # GameSubRelay
 
-GameSubRelay is a Windows desktop tool for live game speech translation with a click-through subtitle overlay.
+GameSubRelay 是一个 Windows 桌面端游戏同声传译工具，用于采集麦克风和游戏/系统声音，并在游戏上方显示可穿透的字幕浮层。
 
-Planned scope:
+## 功能目标
 
-- Capture microphone audio and translate it through a configured speech translation provider.
-- Capture game or system audio from a selected monitoring source and display translated captions.
-- Render channel-based captions in a transparent, always-on-top overlay that does not intercept mouse input during gameplay.
-- Route translated speech to a selected output device or virtual microphone when enabled.
+- 采集麦克风音频，并通过配置的语音翻译服务进行同声传译。
+- 采集指定监听源的游戏或系统声音，并显示识别/翻译字幕。
+- 在透明、置顶、鼠标可穿透的浮层中按声道显示字幕，避免影响游戏操作。
+- 启用语音输出后，将翻译后的语音输出到指定播放设备或虚拟麦克风。
+- 软件启动后不会自动监听，需要手动点击“开始同传”；点击“停止同传”后会停止采集和翻译。
 
-The first target platform is Windows 10/11 with borderless windowed games.
+## 火山引擎凭据
+
+使用火山引擎同声传译服务时，需要在控制台获取 `APP ID` 和 `Access Token`：
+
+https://console.volcengine.com/speech/service/10030
+
+在软件设置中按下面的方式填写：
+
+- `APP ID` -> `X-Api-App-Key`
+- `Access Token` -> `X-Api-Access-Key`
+
+注意：这里不要填写账号级 IAM AK/SK，这个同传接口使用的是语音服务页面里的 `APP ID` 和 `Access Token`。
+
+## 运行平台
+
+当前优先支持 Windows 10/11，主要面向无边框窗口模式的游戏场景。
