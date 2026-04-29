@@ -115,6 +115,27 @@ public sealed class AppRuntimeServiceTests
             state.Status == ChannelRuntimeStatus.Error);
     }
 
+    [Fact]
+    public async Task StartChannelAsync_reports_error_when_requested_channel_is_not_available()
+    {
+        var monitor = new RecordingWorker(AudioChannelId.Monitor);
+        var states = new List<ChannelRuntimeState>();
+        var service = new AppRuntimeService(
+            new RecordingWorkerFactory(() => [monitor]),
+            NullLogger<AppRuntimeService>.Instance);
+        service.ChannelStateChanged += (_, state) => states.Add(state);
+
+        await service.StartChannelAsync(AudioChannelId.Microphone);
+
+        Assert.False(service.IsRunning);
+        Assert.Equal(0, monitor.StartCount);
+        Assert.Equal(1, monitor.DisposeCount);
+        Assert.Contains(states, state =>
+            state.ChannelId == AudioChannelId.Microphone &&
+            state.Status == ChannelRuntimeStatus.Error &&
+            state.IsEnabled == false);
+    }
+
     private sealed class RecordingWorkerFactory : IAudioChannelWorkerFactory
     {
         private readonly Func<IReadOnlyList<IAudioChannelWorker>> _createWorkers;

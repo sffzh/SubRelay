@@ -1,37 +1,78 @@
-<UserControl x:Class="GameSubRelay.App.Settings.HotkeySettingsView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:GameSubRelay.App"
-             Margin="12">
+<UserControl
+    x:Class="GameSubRelay.App.Settings.HotkeySettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:GameSubRelay.App">
     <UserControl.Resources>
         <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </UserControl.Resources>
+
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel>
-            <TextBlock Text="全局快捷键" FontWeight="SemiBold" FontSize="16" />
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+        <StackPanel Margin="24">
+            <StackPanel Margin="0 0 0 18">
+                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="快捷键" />
+                <TextBlock
+                    Margin="0 6 0 0"
+                    Style="{StaticResource MutedTextStyle}"
+                    Text="设置字幕浮层的显示、锁定和清空快捷键。" />
+            </StackPanel>
 
-                <TextBlock Grid.Row="0" Text="显示/隐藏字幕浮层" VerticalAlignment="Center" />
-                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ToggleOverlayHotkey}" />
+            <Border Style="{StaticResource SectionPanelStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="1" Text="锁定/解锁字幕浮层" VerticalAlignment="Center" Margin="0 12 0 0" />
-                <TextBox Grid.Row="1" Grid.Column="1" Margin="0 12 0 0" Text="{Binding ToggleEditModeHotkey}" />
+                    <TextBlock
+                        Grid.Row="0"
+                        Style="{StaticResource FieldLabelTextStyle}"
+                        Text="显示/隐藏字幕浮层" />
+                    <TextBox
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Text="{Binding ToggleOverlayHotkey}" />
 
-                <TextBlock Grid.Row="2" Text="清空字幕" VerticalAlignment="Center" Margin="0 12 0 0" />
-                <TextBox Grid.Row="2" Grid.Column="1" Margin="0 12 0 0" Text="{Binding ClearCaptionsHotkey}" />
-            </Grid>
+                    <TextBlock
+                        Grid.Row="1"
+                        Margin="0 14 0 0"
+                        Style="{StaticResource FieldLabelTextStyle}"
+                        Text="锁定/解锁字幕浮层" />
+                    <TextBox
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="0 14 0 0"
+                        Text="{Binding ToggleEditModeHotkey}" />
 
-            <TextBlock Text="检测到冲突：" Foreground="DarkRed"
-                       Visibility="{Binding HasConflict, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBlock
+                        Grid.Row="2"
+                        Margin="0 14 0 0"
+                        Style="{StaticResource FieldLabelTextStyle}"
+                        Text="清空字幕" />
+                    <TextBox
+                        Grid.Row="2"
+                        Grid.Column="1"
+                        Margin="0 14 0 0"
+                        Text="{Binding ClearCaptionsHotkey}" />
+                </Grid>
+            </Border>
+
+            <Border
+                Padding="14 10"
+                Background="#FEF2F2"
+                BorderBrush="#FECACA"
+                BorderThickness="1"
+                CornerRadius="8"
+                Visibility="{Binding HasConflict, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock
+                    Foreground="{StaticResource AppDangerBrush}"
+                    Text="检测到快捷键冲突，请调整后保存。" />
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

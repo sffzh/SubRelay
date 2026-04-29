@@ -814,6 +814,12 @@ public sealed class SettingsViewModel : ViewModelBase
             return;
         }
 
+        if (!Audio.MicrophoneEnabled)
+        {
+            StatusText = "请先在音频设置中启用麦克风，再开始同声传译";
+            return;
+        }
+
         IsRelayBusy = true;
         try
         {
@@ -866,6 +872,12 @@ public sealed class SettingsViewModel : ViewModelBase
         if (_runtimeService is null)
         {
             StatusText = "运行时服务未启用";
+            return;
+        }
+
+        if (!Audio.MonitorEnabled)
+        {
+            StatusText = "请先在音频设置中启用游戏声音，再开始语音识别";
             return;
         }
 

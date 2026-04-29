@@ -169,6 +169,7 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
     {
         var workers = _workerFactory.CreateWorkers().ToList();
         var requested = channelIds?.ToHashSet();
+        var availableRequestedChannels = new HashSet<AudioChannelId>();
         var startedCount = 0;
         _logger.LogInformation("Created {WorkerCount} runtime channel workers.", workers.Count);
         foreach (var worker in workers)
@@ -178,6 +179,8 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
                 await DisposeWorkerAsync(worker);
                 continue;
             }
+
+            availableRequestedChannels.Add(worker.ChannelId);
 
             if (_channelWorkers.ContainsKey(worker.ChannelId))
             {
@@ -208,6 +211,23 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
                     IsEnabled: true,
                     LastUpdatedAt: DateTimeOffset.UtcNow,
                     ErrorMessage: ex.Message));
+            }
+        }
+
+        if (requested is not null)
+        {
+            foreach (var missingChannel in requested.Except(availableRequestedChannels))
+            {
+                const string message = "Requested runtime channel was not created. Check whether the channel is enabled in audio settings.";
+                _logger.LogWarning(
+                    "Requested runtime channel {ChannelId} was not created by the worker factory. Check whether the channel is enabled in audio settings.",
+                    missingChannel);
+                ChannelStateChanged(this, new ChannelRuntimeState(
+                    missingChannel,
+                    ChannelRuntimeStatus.Error,
+                    IsEnabled: false,
+                    LastUpdatedAt: DateTimeOffset.UtcNow,
+                    ErrorMessage: message));
             }
         }
 

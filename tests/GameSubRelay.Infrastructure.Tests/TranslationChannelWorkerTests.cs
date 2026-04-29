@@ -44,6 +44,7 @@ public class TranslationChannelWorkerTests
         await worker.StopAsync();
 
         session.SentFrames.Should().ContainSingle();
+        session.ReadCancellationWasRequestedWhenCompleted.Should().BeFalse();
         store.GetSnapshot().Should().ContainSingle(line =>
             line.SourceText == "hello" &&
             line.TranslatedText == "你好" &&
@@ -112,8 +113,11 @@ public class TranslationChannelWorkerTests
     private sealed class StubSpeechTranslationSession : ISpeechTranslationSession
     {
         private readonly Channel<TranslationSegment> _segments = Channel.CreateUnbounded<TranslationSegment>();
+        private CancellationToken _readCancellationToken;
 
         public List<AudioFrame> SentFrames { get; } = [];
+
+        public bool? ReadCancellationWasRequestedWhenCompleted { get; private set; }
 
         public ValueTask SendAudioAsync(AudioFrame frame, CancellationToken cancellationToken)
         {
@@ -123,12 +127,16 @@ public class TranslationChannelWorkerTests
 
         public ValueTask CompleteAsync(CancellationToken cancellationToken)
         {
+            ReadCancellationWasRequestedWhenCompleted ??= _readCancellationToken.IsCancellationRequested;
             _segments.Writer.TryComplete();
             return ValueTask.CompletedTask;
         }
 
         public IAsyncEnumerable<TranslationSegment> ReadSegmentsAsync(CancellationToken cancellationToken)
-            => _segments.Reader.ReadAllAsync(cancellationToken);
+        {
+            _readCancellationToken = cancellationToken;
+            return _segments.Reader.ReadAllAsync(cancellationToken);
+        }
 
         public ValueTask DisposeAsync() => CompleteAsync(CancellationToken.None);
 

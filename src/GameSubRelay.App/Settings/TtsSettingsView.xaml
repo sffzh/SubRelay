@@ -1,15 +1,46 @@
-<UserControl x:Class="GameSubRelay.App.Settings.TtsSettingsView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Margin="12">
+<UserControl
+    x:Class="GameSubRelay.App.Settings.TtsSettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel>
-            <TextBlock Text="语音输出" FontWeight="SemiBold" FontSize="16" />
-            <CheckBox Content="启用 TTS" IsChecked="{Binding TtsEnabled}" />
-            <CheckBox Content="播放麦克风通道译文" IsChecked="{Binding TtsForMicrophone}" />
-            <CheckBox Content="播放监听通道译文" IsChecked="{Binding TtsForMonitor}" />
-            <TextBlock Text="队列策略：最大长度3，满后丢弃最旧项" Foreground="Gray" />
-            <TextBox Text="{Binding QueueStrategy}" AcceptsReturn="True" Height="72" />
+        <StackPanel Margin="24">
+            <StackPanel Margin="0 0 0 18">
+                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="语音输出" />
+                <TextBlock
+                    Margin="0 6 0 0"
+                    Style="{StaticResource MutedTextStyle}"
+                    Text="控制译文播报通道和播放队列策略。" />
+            </StackPanel>
+
+            <Border Style="{StaticResource SectionPanelStyle}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="播报通道" />
+                    <CheckBox Content="启用 TTS" IsChecked="{Binding TtsEnabled}" />
+                    <CheckBox
+                        Margin="0 10 0 0"
+                        Content="播放麦克风通道译文"
+                        IsChecked="{Binding TtsForMicrophone}" />
+                    <CheckBox
+                        Margin="0 10 0 0"
+                        Content="播放监听通道译文"
+                        IsChecked="{Binding TtsForMonitor}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource SectionPanelStyle}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="队列策略" />
+                    <TextBlock
+                        Margin="0 0 0 10"
+                        Style="{StaticResource MutedTextStyle}"
+                        Text="默认最大长度为 3，队列满后丢弃最旧项。" />
+                    <TextBox
+                        Height="92"
+                        AcceptsReturn="True"
+                        Text="{Binding QueueStrategy}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

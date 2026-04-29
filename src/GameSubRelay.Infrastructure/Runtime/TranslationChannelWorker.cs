@@ -1,4 +1,5 @@
 using System;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using GameSubRelay.Core.Audio;
@@ -129,29 +130,45 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
         }
 
         _logger.LogInformation("Stop channel {ChannelId}.", ChannelId);
-        runCts?.Cancel();
 
         if (frameSource is not null)
         {
             await frameSource.StopAsync();
         }
 
+        await AwaitLoopAsync(sendLoop);
+
         if (session is not null)
         {
             _logger.LogInformation("Completing translation session for channel {ChannelId}.", ChannelId);
-            await session.CompleteAsync(cancellationToken);
+            try
+            {
+                await session.CompleteAsync(cancellationToken);
+            }
+            catch (Exception ex) when (IsExpectedSessionTeardownException(ex))
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Translation session was already closing while completing channel {ChannelId}.",
+                    ChannelId);
+            }
+        }
+
+        runCts?.Cancel();
+        await AwaitLoopAsync(readLoop);
+        if (session is not null)
+        {
             await session.DisposeAsync();
         }
 
-        await AwaitLoopAsync(sendLoop);
-        await AwaitLoopAsync(readLoop);
         runCts?.Dispose();
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async Task SendLoopAsync(CancellationToken cancellationToken)
     {
-        if (_frameSource is null || _session is null)
+        var session = _session;
+        if (_frameSource is null || session is null)
         {
             return;
         }
@@ -162,7 +179,7 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
         {
             await foreach (var frame in _frameSource.GetFramesAsync(cancellationToken))
             {
-                await _session.SendAudioAsync(frame, cancellationToken);
+                await session.SendAudioAsync(frame, cancellationToken);
                 framesSent++;
                 bytesSent += frame.Pcm16Mono16Khz.Length;
             }
@@ -186,7 +203,8 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
 
     private async Task ReadLoopAsync(CancellationToken cancellationToken)
     {
-        if (_captionStore is null || _session is null)
+        var session = _session;
+        if (_captionStore is null || session is null)
         {
             return;
         }
@@ -194,7 +212,7 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
         long segmentsRead = 0;
         try
         {
-            await foreach (var segment in _session.ReadSegmentsAsync(cancellationToken))
+            await foreach (var segment in session.ReadSegmentsAsync(cancellationToken))
             {
                 _captionStore.ApplySegment(segment);
                 segmentsRead++;
@@ -221,6 +239,13 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
                 ChannelId,
                 segmentsRead);
         }
+    }
+
+    private static bool IsExpectedSessionTeardownException(Exception ex)
+    {
+        return ex is WebSocketException or ObjectDisposedException ||
+               ex is InvalidOperationException invalidOperationException &&
+               invalidOperationException.Message.Contains("WebSocket", StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task AwaitLoopAsync(Task? task)

@@ -1,107 +1,196 @@
-<UserControl x:Class="GameSubRelay.App.Settings.TranslationSettingsView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Margin="12"
-             Loaded="OnLoaded">
+<UserControl
+    x:Class="GameSubRelay.App.Settings.TranslationSettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Loaded="OnLoaded">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel>
-            <TextBlock Text="同声传译服务" FontWeight="SemiBold" FontSize="16" />
-
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="170" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Text="同传服务" VerticalAlignment="Center" />
-                <ComboBox Grid.Row="0" Grid.Column="1"
-                          ItemsSource="{Binding Providers}"
-                          SelectedValue="{Binding Provider, Mode=TwoWay}"
-                          SelectedValuePath="Code"
-                          DisplayMemberPath="DisplayText" />
-
-                <TextBlock Grid.Row="1" Text="源语言" VerticalAlignment="Center" Margin="0 12 0 0" />
-                <ComboBox Grid.Row="1" Grid.Column="1" Margin="0 12 0 0"
-                          ItemsSource="{Binding AvailableSourceLanguages}"
-                          SelectedValue="{Binding SourceLanguage, Mode=TwoWay}"
-                          SelectedValuePath="Code"
-                          DisplayMemberPath="DisplayText" />
-
-                <TextBlock Grid.Row="2" Text="目标语言" VerticalAlignment="Center" Margin="0 12 0 0" />
-                <ComboBox Grid.Row="2" Grid.Column="1" Margin="0 12 0 0"
-                          ItemsSource="{Binding AvailableTargetLanguages}"
-                          SelectedValue="{Binding TargetLanguage, Mode=TwoWay}"
-                          SelectedValuePath="Code"
-                          DisplayMemberPath="DisplayText" />
-
-                <TextBlock Grid.Row="3" Text="区域" VerticalAlignment="Center" Margin="0 12 0 0" />
-                <TextBox Grid.Row="3" Grid.Column="1" Margin="0 12 0 0" Text="{Binding Region}" />
-            </Grid>
-
-            <TextBlock Text="火山同声传译凭据" FontWeight="SemiBold" Margin="0 10 0 0" />
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="170" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Text="APP ID" VerticalAlignment="Center" />
-                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding AccessKeyId}" />
-
-                <TextBlock Grid.Row="1" Text="Access Token" VerticalAlignment="Center" Margin="0 12 0 0" />
-                <PasswordBox x:Name="SecretAccessKeyBox"
-                             Grid.Row="1"
-                             Grid.Column="1"
-                             Margin="0 12 0 0"
-                             PasswordChanged="SecretAccessKeyPasswordChanged" />
-            </Grid>
-
-            <TextBlock Text="提示：非中英互译时，源语言或目标语言至少一个应为中文或英语；中英互译需要源语言和目标语言都选择 zhen。"
-                       Foreground="Gray"
-                       TextWrapping="Wrap"
-                       Margin="0 10 0 0" />
-
-            <TextBlock Text="运行控制" FontWeight="SemiBold" Margin="0 10 0 0" />
-            <StackPanel Orientation="Horizontal" Margin="0 6 0 0">
-                <Button Content="开始同传"
-                        Width="108"
-                        Command="{Binding DataContext.StartRelayCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
-                <Button Content="停止同传"
-                        Width="108"
-                        Margin="8 0 0 0"
-                        Command="{Binding DataContext.StopRelayCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
-                <TextBlock Text="{Binding DataContext.RelayStateText, RelativeSource={RelativeSource AncestorType=Window}}"
-                           VerticalAlignment="Center"
-                           Margin="12 0 0 0"
-                           Foreground="#586069" />
+        <StackPanel Margin="24">
+            <StackPanel Margin="0 0 0 18">
+                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="同声传译" />
+                <TextBlock
+                    Margin="0 6 0 0"
+                    Style="{StaticResource MutedTextStyle}"
+                    Text="配置麦克风通道的实时翻译服务、语言方向和火山凭据。" />
             </StackPanel>
 
-            <StackPanel Orientation="Horizontal" Margin="0 6 0 0">
-                <Button Content="测试连接" Width="108" Command="{Binding TestConnectionCommand}" />
-                <TextBlock Text="{Binding ConnectionTestStatus}"
-                           VerticalAlignment="Center"
-                           Margin="12 0 0 0"
-                           Foreground="DarkGreen" />
-            </StackPanel>
+            <Border Style="{StaticResource SectionPanelStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="180" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-            <StackPanel Orientation="Horizontal" Margin="0 6 0 0">
-                <Button Content="测试功能" Width="108" Command="{Binding TestFunctionCommand}" />
-                <TextBlock Text="{Binding FunctionTestStatus}"
-                           VerticalAlignment="Center"
-                           Margin="12 0 0 0"
-                           Foreground="DarkGreen"
-                           TextWrapping="Wrap" />
-            </StackPanel>
+                    <TextBlock
+                        Grid.Row="0"
+                        Style="{StaticResource FieldLabelTextStyle}"
+                        Text="同传服务" />
+                    <ComboBox
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        DisplayMemberPath="DisplayText"
+                        ItemsSource="{Binding Providers}"
+                        SelectedValue="{Binding Provider, Mode=TwoWay}"
+                        SelectedValuePath="Code" />
+
+                    <TextBlock
+                        Grid.Row="1"
+                        Margin="0 14 0 0"
+                        Style="{StaticResource FieldLabelTextStyle}"
+                        Text="源语言" />
+                    <ComboBox
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Margin="0 14 0 0"
+                        DisplayMemberPath="DisplayText"
+                        ItemsSource="{Binding AvailableSourceLanguages}"
+                        SelectedValue="{Binding SourceLanguage, Mode=TwoWay}"
+                        SelectedValuePath="Code" />
+
+                    <TextBlock
+                        Grid.Row="2"
+                        Margin="0 14 0 0"
+                        Style="{StaticResource FieldLabelTextStyle}"
+                        Text="目标语言" />
+                    <ComboBox
+                        Grid.Row="2"
+                        Grid.Column="1"
+                        Margin="0 14 0 0"
+                        DisplayMemberPath="DisplayText"
+                        ItemsSource="{Binding AvailableTargetLanguages}"
+                        SelectedValue="{Binding TargetLanguage, Mode=TwoWay}"
+                        SelectedValuePath="Code" />
+
+                    <TextBlock
+                        Grid.Row="3"
+                        Margin="0 14 0 0"
+                        Style="{StaticResource FieldLabelTextStyle}"
+                        Text="区域" />
+                    <TextBox
+                        Grid.Row="3"
+                        Grid.Column="1"
+                        Margin="0 14 0 0"
+                        Text="{Binding Region}" />
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SectionPanelStyle}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="火山同声传译凭据" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock
+                            Grid.Row="0"
+                            Style="{StaticResource FieldLabelTextStyle}"
+                            Text="APP ID" />
+                        <TextBox
+                            Grid.Row="0"
+                            Grid.Column="1"
+                            Text="{Binding AccessKeyId}" />
+
+                        <TextBlock
+                            Grid.Row="1"
+                            Margin="0 14 0 0"
+                            Style="{StaticResource FieldLabelTextStyle}"
+                            Text="Access Token" />
+                        <PasswordBox
+                            x:Name="SecretAccessKeyBox"
+                            Grid.Row="1"
+                            Grid.Column="1"
+                            Margin="0 14 0 0"
+                            PasswordChanged="SecretAccessKeyPasswordChanged" />
+                    </Grid>
+                    <TextBlock
+                        Margin="0 12 0 0"
+                        Style="{StaticResource MutedTextStyle}"
+                        Text="非中英互译时，源语言或目标语言至少一个应为中文或英语；中英互译需要源语言和目标语言都选择 zhen。" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource SectionPanelStyle}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="运行与测试" />
+                    <WrapPanel Margin="0 0 0 10">
+                        <ui:Button
+                            MinWidth="112"
+                            Margin="0 0 8 8"
+                            Appearance="Primary"
+                            Command="{Binding DataContext.StartRelayCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Content="开始同传"
+                            Icon="{ui:SymbolIcon Play20}" />
+                        <ui:Button
+                            MinWidth="112"
+                            Margin="0 0 12 8"
+                            Appearance="Secondary"
+                            Command="{Binding DataContext.StopRelayCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Content="停止同传"
+                            Icon="{ui:SymbolIcon Stop20}" />
+                        <TextBlock
+                            Margin="0 0 0 8"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource MutedTextStyle}"
+                            Text="{Binding DataContext.RelayStateText, RelativeSource={RelativeSource AncestorType=Window}}" />
+                    </WrapPanel>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <ui:Button
+                            Grid.Row="0"
+                            MinWidth="112"
+                            Appearance="Secondary"
+                            Command="{Binding TestConnectionCommand}"
+                            Content="测试连接"
+                            Icon="{ui:SymbolIcon PlugConnected20}" />
+                        <TextBlock
+                            Grid.Row="0"
+                            Grid.Column="1"
+                            Margin="12 0 0 0"
+                            VerticalAlignment="Center"
+                            Foreground="{StaticResource AppSuccessBrush}"
+                            Text="{Binding ConnectionTestStatus}"
+                            TextWrapping="Wrap" />
+
+                        <ui:Button
+                            Grid.Row="1"
+                            MinWidth="112"
+                            Margin="0 10 0 0"
+                            Appearance="Secondary"
+                            Command="{Binding TestFunctionCommand}"
+                            Content="测试功能"
+                            Icon="{ui:SymbolIcon BeakerSettings20}" />
+                        <TextBlock
+                            Grid.Row="1"
+                            Grid.Column="1"
+                            Margin="12 10 0 0"
+                            VerticalAlignment="Center"
+                            Foreground="{StaticResource AppSuccessBrush}"
+                            Text="{Binding FunctionTestStatus}"
+                            TextWrapping="Wrap" />
+                    </Grid>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

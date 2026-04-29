@@ -42,6 +42,7 @@ public sealed class SpeechRecognitionChannelWorkerTests
         await worker.StopAsync();
 
         session.SentFrames.Should().ContainSingle();
+        session.ReadCancellationWasRequestedWhenCompleted.Should().BeFalse();
         store.GetSnapshot().Should().ContainSingle(line =>
             line.SourceText == "enemy on the left" &&
             line.TranslatedText == string.Empty &&
@@ -110,8 +111,11 @@ public sealed class SpeechRecognitionChannelWorkerTests
     private sealed class StubSpeechRecognitionSession : ISpeechRecognitionSession
     {
         private readonly Channel<SpeechRecognitionSegment> _segments = Channel.CreateUnbounded<SpeechRecognitionSegment>();
+        private CancellationToken _readCancellationToken;
 
         public List<AudioFrame> SentFrames { get; } = [];
+
+        public bool? ReadCancellationWasRequestedWhenCompleted { get; private set; }
 
         public ValueTask SendAudioAsync(AudioFrame frame, CancellationToken cancellationToken)
         {
@@ -121,12 +125,16 @@ public sealed class SpeechRecognitionChannelWorkerTests
 
         public ValueTask CompleteAsync(CancellationToken cancellationToken)
         {
+            ReadCancellationWasRequestedWhenCompleted ??= _readCancellationToken.IsCancellationRequested;
             _segments.Writer.TryComplete();
             return ValueTask.CompletedTask;
         }
 
         public IAsyncEnumerable<SpeechRecognitionSegment> ReadSegmentsAsync(CancellationToken cancellationToken)
-            => _segments.Reader.ReadAllAsync(cancellationToken);
+        {
+            _readCancellationToken = cancellationToken;
+            return _segments.Reader.ReadAllAsync(cancellationToken);
+        }
 
         public ValueTask DisposeAsync() => CompleteAsync(CancellationToken.None);
 

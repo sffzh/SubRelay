@@ -1,33 +1,41 @@
-# Volcengine Streaming ASR
+# 火山引擎流式 ASR
 
-GameSubRelay can use Volcengine 大模型流式语音识别 for language recognition / ASR support.
+GameSubRelay 保留火山引擎大模型流式语音识别作为诊断和扩展能力，但它不再作为“游戏语音字幕”的主链路。
+
+主链路设计见：`docs/design/ast-dual-channel-design.md`
+
+原因：
+
+- ASR 只负责识别，不负责翻译。
+- 游戏声音需求是“识别并翻译成字幕”，应使用 AST `s2t`。
+- ASR 后接翻译会引入额外延迟和错误传播，不作为默认方案。
 
 ## Endpoints
 
-The current option model records the documented WebSocket endpoints:
+当前 option model 记录了以下 WebSocket endpoint：
 
 - Bidirectional streaming: `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel`
 - Optimized bidirectional streaming: `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async`
 - Streaming input: `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream`
 
-## Authentication
+## 鉴权
 
-The ASR WebSocket connection uses:
+ASR WebSocket 连接使用：
 
 - `X-Api-App-Key`
 - `X-Api-Access-Key`
 - `X-Api-Resource-Id`
 - `X-Api-Connect-Id`
 
-Known resource IDs are captured in `VolcengineStreamingAsrOptions`.
+Resource ID 由 `VolcengineStreamingAsrOptions` 管理。
 
-## Integration Status
+## 保留用途
 
-The playback-device recognition channel uses optimized bidirectional streaming:
+ASR 只保留在这些场景：
 
-- Endpoint: `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async`
-- Transport: Volcengine V3 binary WebSocket frames
-- Request payload: JSON + Gzip full client request, followed by Gzip PCM audio-only frames
-- Audio: 16 kHz, 16-bit, mono PCM, batched around 200 ms
+- 测试火山流式识别连接。
+- 对比 AST 字幕质量和延迟。
+- 后续提供“只转写不翻译”模式。
+- 开发诊断页查看原始识别结果。
 
-ASR results are mapped into `SpeechRecognitionSegment` values. The recognition worker applies them as source-only caption updates so the overlay can show recognized playback text without pretending it is translated text.
+ASR 结果仍映射为 `SpeechRecognitionSegment`，但主界面不应把它命名为“游戏语音字幕”或“同声传译”。

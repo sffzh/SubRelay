@@ -1,4 +1,5 @@
 using System;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using GameSubRelay.Core.Audio;
@@ -109,25 +110,40 @@ public sealed class SpeechRecognitionChannelWorker : IAudioChannelWorker, IAsync
         }
 
         _logger.LogInformation("Stop speech recognition channel {ChannelId}.", ChannelId);
-        runCts?.Cancel();
         await _frameSource.StopAsync();
+        await AwaitLoopAsync(sendLoop);
 
         if (session is not null)
         {
             _logger.LogInformation("Completing speech recognition session for channel {ChannelId}.", ChannelId);
-            await session.CompleteAsync(cancellationToken);
+            try
+            {
+                await session.CompleteAsync(cancellationToken);
+            }
+            catch (Exception ex) when (IsExpectedSessionTeardownException(ex))
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Speech recognition session was already closing while completing channel {ChannelId}.",
+                    ChannelId);
+            }
+        }
+
+        runCts?.Cancel();
+        await AwaitLoopAsync(readLoop);
+        if (session is not null)
+        {
             await session.DisposeAsync();
         }
 
-        await AwaitLoopAsync(sendLoop);
-        await AwaitLoopAsync(readLoop);
         runCts?.Dispose();
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async Task SendLoopAsync(CancellationToken cancellationToken)
     {
-        if (_session is null)
+        var session = _session;
+        if (session is null)
         {
             return;
         }
@@ -138,7 +154,7 @@ public sealed class SpeechRecognitionChannelWorker : IAudioChannelWorker, IAsync
         {
             await foreach (var frame in _frameSource.GetFramesAsync(cancellationToken))
             {
-                await _session.SendAudioAsync(frame, cancellationToken);
+                await session.SendAudioAsync(frame, cancellationToken);
                 framesSent++;
                 bytesSent += frame.Pcm16Mono16Khz.Length;
             }
@@ -162,7 +178,8 @@ public sealed class SpeechRecognitionChannelWorker : IAudioChannelWorker, IAsync
 
     private async Task ReadLoopAsync(CancellationToken cancellationToken)
     {
-        if (_session is null)
+        var session = _session;
+        if (session is null)
         {
             return;
         }
@@ -170,7 +187,7 @@ public sealed class SpeechRecognitionChannelWorker : IAudioChannelWorker, IAsync
         long segmentsRead = 0;
         try
         {
-            await foreach (var segment in _session.ReadSegmentsAsync(cancellationToken))
+            await foreach (var segment in session.ReadSegmentsAsync(cancellationToken))
             {
                 _captionStore.ApplyRecognitionSegment(segment);
                 segmentsRead++;
@@ -196,6 +213,13 @@ public sealed class SpeechRecognitionChannelWorker : IAudioChannelWorker, IAsync
                 ChannelId,
                 segmentsRead);
         }
+    }
+
+    private static bool IsExpectedSessionTeardownException(Exception ex)
+    {
+        return ex is WebSocketException or ObjectDisposedException ||
+               ex is InvalidOperationException invalidOperationException &&
+               invalidOperationException.Message.Contains("WebSocket", StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task AwaitLoopAsync(Task? task)
