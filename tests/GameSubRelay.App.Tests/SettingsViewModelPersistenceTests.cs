@@ -1,4 +1,6 @@
 using GameSubRelay.App.ViewModels;
+using GameSubRelay.App.Diagnostics;
+using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Configuration;
 using GameSubRelay.Core.Runtime;
 using GameSubRelay.Infrastructure.Audio;
@@ -29,6 +31,10 @@ public sealed class SettingsViewModelPersistenceTests
                 "ja",
                 "zh",
                 "cn-north-1"),
+            SpeechRecognition = new SpeechRecognitionSettings(
+                "VolcengineStreamingAsr",
+                "de",
+                "cn-north-1"),
             Overlay = new OverlaySettings(11, 22, 333, 144, 0.7, 28, 4, Visible: true),
             Hotkeys = new HotkeySettings("Ctrl+Alt+J", "Ctrl+Alt+K", "Ctrl+Alt+L"),
             Tts = new TtsSettings(true, false, true, 3)
@@ -39,7 +45,9 @@ public sealed class SettingsViewModelPersistenceTests
             VolcengineAstAccessKey = "access-key",
             VolcengineTtsAppId = "tts-app",
             VolcengineTtsToken = "tts-token",
-            VolcengineTtsCluster = "tts-cluster"
+            VolcengineTtsCluster = "tts-cluster",
+            VolcengineAsrAppKey = "asr-app-key",
+            VolcengineAsrAccessKey = "asr-access-key"
         };
         var viewModel = new SettingsViewModel(
             new OverlayViewModel(),
@@ -57,6 +65,9 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.Equal("zh", viewModel.Translation.TargetLanguage);
         Assert.Equal("app-key", viewModel.Translation.AccessKeyId);
         Assert.Equal("access-key", viewModel.Translation.SecretAccessKey);
+        Assert.Equal("de", viewModel.SpeechRecognition.Language);
+        Assert.Equal("asr-app-key", viewModel.SpeechRecognition.AccessKeyId);
+        Assert.Equal("asr-access-key", viewModel.SpeechRecognition.SecretAccessKey);
         Assert.Equal(11, viewModel.Overlay.Left);
         Assert.Equal(333, viewModel.Overlay.Width);
         Assert.True(viewModel.OverlayVisible);
@@ -81,6 +92,9 @@ public sealed class SettingsViewModelPersistenceTests
         viewModel.Translation.TargetLanguage = "zhen";
         viewModel.Translation.AccessKeyId = "app-key";
         viewModel.Translation.SecretAccessKey = "access-key";
+        viewModel.SpeechRecognition.Language = "ja";
+        viewModel.SpeechRecognition.AccessKeyId = "asr-app-key";
+        viewModel.SpeechRecognition.SecretAccessKey = "asr-access-key";
         viewModel.Overlay.Left = 101;
         viewModel.Overlay.Top = 202;
         viewModel.Overlay.Width = 303;
@@ -98,6 +112,7 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.Equal("Cable A", settingsStore.SavedSettings.Audio.TtsOutputDeviceId);
         Assert.False(settingsStore.SavedSettings.Audio.MicrophoneEnabled);
         Assert.Equal("zhen", settingsStore.SavedSettings.Translation.TargetLanguage);
+        Assert.Equal("ja", settingsStore.SavedSettings.SpeechRecognition.Language);
         Assert.Equal(101, settingsStore.SavedSettings.Overlay.Left);
         Assert.Equal(404, settingsStore.SavedSettings.Overlay.Height);
         Assert.True(settingsStore.SavedSettings.Overlay.Visible);
@@ -108,6 +123,8 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.NotNull(secretStore.SavedSecrets);
         Assert.Equal("app-key", secretStore.SavedSecrets.VolcengineAppKey);
         Assert.Equal("access-key", secretStore.SavedSecrets.VolcengineAstAccessKey);
+        Assert.Equal("asr-app-key", secretStore.SavedSecrets.VolcengineAsrAppKey);
+        Assert.Equal("asr-access-key", secretStore.SavedSecrets.VolcengineAsrAccessKey);
     }
 
     [Fact]
@@ -203,7 +220,7 @@ public sealed class SettingsViewModelPersistenceTests
     }
 
     [Fact]
-    public void Relay_commands_start_and_stop_runtime_on_request()
+    public void Relay_commands_start_and_stop_translation_channel_on_request()
     {
         var runtimeService = new RecordingRuntimeService();
         var viewModel = new SettingsViewModel(
@@ -214,25 +231,66 @@ public sealed class SettingsViewModelPersistenceTests
             runtimeService);
 
         Assert.False(viewModel.IsRelayRunning);
+        Assert.False(viewModel.IsSpeechRecognitionRunning);
         Assert.Equal("同传已停止", viewModel.RelayStateText);
+        Assert.Equal("识别已停止", viewModel.SpeechRecognitionStateText);
         Assert.True(viewModel.StartRelayCommand.CanExecute(null));
         Assert.False(viewModel.StopRelayCommand.CanExecute(null));
+        Assert.True(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
+        Assert.False(viewModel.StopSpeechRecognitionCommand.CanExecute(null));
 
         viewModel.StartRelayCommand.Execute(null);
 
         Assert.True(viewModel.IsRelayRunning);
-        Assert.Equal(1, runtimeService.StartCount);
+        Assert.False(viewModel.IsSpeechRecognitionRunning);
+        Assert.Equal(1, runtimeService.GetStartCount(AudioChannelId.Microphone));
+        Assert.Equal(0, runtimeService.GetStartCount(AudioChannelId.Monitor));
         Assert.Equal("同传运行中", viewModel.RelayStateText);
         Assert.False(viewModel.StartRelayCommand.CanExecute(null));
         Assert.True(viewModel.StopRelayCommand.CanExecute(null));
+        Assert.True(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
 
         viewModel.StopRelayCommand.Execute(null);
 
         Assert.False(viewModel.IsRelayRunning);
-        Assert.Equal(1, runtimeService.StopCount);
+        Assert.False(viewModel.IsSpeechRecognitionRunning);
+        Assert.Equal(1, runtimeService.GetStopCount(AudioChannelId.Microphone));
+        Assert.Equal(0, runtimeService.GetStopCount(AudioChannelId.Monitor));
         Assert.Equal("同传已停止", viewModel.RelayStateText);
         Assert.True(viewModel.StartRelayCommand.CanExecute(null));
         Assert.False(viewModel.StopRelayCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void Speech_recognition_commands_start_and_stop_monitor_channel_on_request()
+    {
+        var runtimeService = new RecordingRuntimeService();
+        var viewModel = new SettingsViewModel(
+            new OverlayViewModel(),
+            new InMemorySettingsStore(AppSettings.Default),
+            new InMemorySecretStore(SecretSettings.Empty),
+            null,
+            runtimeService);
+
+        viewModel.StartSpeechRecognitionCommand.Execute(null);
+
+        Assert.False(viewModel.IsRelayRunning);
+        Assert.True(viewModel.IsSpeechRecognitionRunning);
+        Assert.Equal(0, runtimeService.GetStartCount(AudioChannelId.Microphone));
+        Assert.Equal(1, runtimeService.GetStartCount(AudioChannelId.Monitor));
+        Assert.Equal("识别运行中", viewModel.SpeechRecognitionStateText);
+        Assert.True(viewModel.StartRelayCommand.CanExecute(null));
+        Assert.False(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
+        Assert.True(viewModel.StopSpeechRecognitionCommand.CanExecute(null));
+
+        viewModel.StopSpeechRecognitionCommand.Execute(null);
+
+        Assert.False(viewModel.IsSpeechRecognitionRunning);
+        Assert.Equal(0, runtimeService.GetStopCount(AudioChannelId.Microphone));
+        Assert.Equal(1, runtimeService.GetStopCount(AudioChannelId.Monitor));
+        Assert.Equal("识别已停止", viewModel.SpeechRecognitionStateText);
+        Assert.True(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
+        Assert.False(viewModel.StopSpeechRecognitionCommand.CanExecute(null));
     }
 
     [Fact]
@@ -270,6 +328,33 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.Equal("real-speaker", viewModel.Audio.SelectedMonitorDevice);
         Assert.Equal("real-speaker", viewModel.Audio.SelectedTtsOutputDevice);
         Assert.DoesNotContain(viewModel.Audio.AvailableMicrophones, device => device.DeviceId == "Default Microphone");
+    }
+
+    [Fact]
+    public async Task Diagnostic_commands_call_configured_diagnostics_service()
+    {
+        var diagnostics = new RecordingDiagnosticsService();
+        var viewModel = new SettingsViewModel(
+            new OverlayViewModel(),
+            new InMemorySettingsStore(AppSettings.Default),
+            new InMemorySecretStore(SecretSettings.Empty),
+            null,
+            null,
+            diagnostics);
+
+        await viewModel.Translation.TestConnectionAsync();
+        await viewModel.Translation.TestFunctionAsync();
+        await viewModel.SpeechRecognition.TestConnectionAsync();
+        await viewModel.SpeechRecognition.TestFunctionAsync();
+
+        Assert.Equal("translation connection ok", viewModel.Translation.ConnectionTestStatus);
+        Assert.Equal("translation function ok", viewModel.Translation.FunctionTestStatus);
+        Assert.Equal("recognition connection ok", viewModel.SpeechRecognition.ConnectionTestStatus);
+        Assert.Equal("recognition function ok", viewModel.SpeechRecognition.FunctionTestStatus);
+        Assert.Equal(1, diagnostics.TranslationConnectionCount);
+        Assert.Equal(1, diagnostics.TranslationFunctionCount);
+        Assert.Equal(1, diagnostics.RecognitionConnectionCount);
+        Assert.Equal(1, diagnostics.RecognitionFunctionCount);
     }
 
     private sealed class InMemorySettingsStore : ISettingsStore
@@ -320,9 +405,13 @@ public sealed class SettingsViewModelPersistenceTests
 
     private sealed class RecordingRuntimeService : IAppRuntimeService
     {
+        private readonly HashSet<AudioChannelId> _runningChannels = [];
+        private readonly Dictionary<AudioChannelId, int> _startCounts = [];
+        private readonly Dictionary<AudioChannelId, int> _stopCounts = [];
+
         public event EventHandler<ChannelRuntimeState> ChannelStateChanged = delegate { };
 
-        public bool IsRunning { get; private set; }
+        public bool IsRunning => _runningChannels.Count > 0;
 
         public int StartCount { get; private set; }
 
@@ -330,17 +419,51 @@ public sealed class SettingsViewModelPersistenceTests
 
         public int RestartCount { get; private set; }
 
+        public bool IsChannelRunning(AudioChannelId channelId)
+        {
+            return _runningChannels.Contains(channelId);
+        }
+
+        public int GetStartCount(AudioChannelId channelId)
+        {
+            return _startCounts.GetValueOrDefault(channelId);
+        }
+
+        public int GetStopCount(AudioChannelId channelId)
+        {
+            return _stopCounts.GetValueOrDefault(channelId);
+        }
+
+        public Task StartChannelAsync(
+            AudioChannelId channelId,
+            CancellationToken cancellationToken = default)
+        {
+            _startCounts[channelId] = GetStartCount(channelId) + 1;
+            _runningChannels.Add(channelId);
+            return Task.CompletedTask;
+        }
+
+        public Task StopChannelAsync(
+            AudioChannelId channelId,
+            CancellationToken cancellationToken = default)
+        {
+            _stopCounts[channelId] = GetStopCount(channelId) + 1;
+            _runningChannels.Remove(channelId);
+            return Task.CompletedTask;
+        }
+
         public Task StartRelayAsync(CancellationToken cancellationToken = default)
         {
             StartCount++;
-            IsRunning = true;
+            _runningChannels.Add(AudioChannelId.Microphone);
+            _runningChannels.Add(AudioChannelId.Monitor);
             return Task.CompletedTask;
         }
 
         public Task StopRelayAsync(CancellationToken cancellationToken = default)
         {
             StopCount++;
-            IsRunning = false;
+            _runningChannels.Clear();
             return Task.CompletedTask;
         }
 
@@ -348,6 +471,48 @@ public sealed class SettingsViewModelPersistenceTests
         {
             RestartCount++;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingDiagnosticsService : IRelayDiagnosticsService
+    {
+        public int TranslationConnectionCount { get; private set; }
+        public int TranslationFunctionCount { get; private set; }
+        public int RecognitionConnectionCount { get; private set; }
+        public int RecognitionFunctionCount { get; private set; }
+
+        public Task<string> TestTranslationConnectionAsync(
+            TranslationSettingsViewModel translation,
+            CancellationToken cancellationToken = default)
+        {
+            TranslationConnectionCount++;
+            return Task.FromResult("translation connection ok");
+        }
+
+        public Task<string> TestTranslationFunctionAsync(
+            TranslationSettingsViewModel translation,
+            AudioSettingsViewModel audio,
+            CancellationToken cancellationToken = default)
+        {
+            TranslationFunctionCount++;
+            return Task.FromResult("translation function ok");
+        }
+
+        public Task<string> TestSpeechRecognitionConnectionAsync(
+            SpeechRecognitionSettingsViewModel speechRecognition,
+            CancellationToken cancellationToken = default)
+        {
+            RecognitionConnectionCount++;
+            return Task.FromResult("recognition connection ok");
+        }
+
+        public Task<string> TestSpeechRecognitionFunctionAsync(
+            SpeechRecognitionSettingsViewModel speechRecognition,
+            AudioSettingsViewModel audio,
+            CancellationToken cancellationToken = default)
+        {
+            RecognitionFunctionCount++;
+            return Task.FromResult("recognition function ok");
         }
     }
 

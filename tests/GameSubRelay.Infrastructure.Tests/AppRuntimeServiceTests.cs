@@ -42,6 +42,45 @@ public sealed class AppRuntimeServiceTests
     }
 
     [Fact]
+    public async Task StartChannelAsync_starts_only_requested_channel()
+    {
+        var microphone = new RecordingWorker(AudioChannelId.Microphone);
+        var monitor = new RecordingWorker(AudioChannelId.Monitor);
+        var service = new AppRuntimeService(
+            new RecordingWorkerFactory(() => [microphone, monitor]),
+            NullLogger<AppRuntimeService>.Instance);
+
+        await service.StartChannelAsync(AudioChannelId.Monitor);
+
+        Assert.True(service.IsRunning);
+        Assert.False(service.IsChannelRunning(AudioChannelId.Microphone));
+        Assert.True(service.IsChannelRunning(AudioChannelId.Monitor));
+        Assert.Equal(0, microphone.StartCount);
+        Assert.Equal(1, microphone.DisposeCount);
+        Assert.Equal(1, monitor.StartCount);
+    }
+
+    [Fact]
+    public async Task StopChannelAsync_stops_only_requested_channel()
+    {
+        var microphone = new RecordingWorker(AudioChannelId.Microphone);
+        var monitor = new RecordingWorker(AudioChannelId.Monitor);
+        var service = new AppRuntimeService(
+            new RecordingWorkerFactory(() => [microphone, monitor]),
+            NullLogger<AppRuntimeService>.Instance);
+
+        await service.StartRelayAsync();
+        await service.StopChannelAsync(AudioChannelId.Monitor);
+
+        Assert.True(service.IsRunning);
+        Assert.True(service.IsChannelRunning(AudioChannelId.Microphone));
+        Assert.False(service.IsChannelRunning(AudioChannelId.Monitor));
+        Assert.Equal(0, microphone.StopCount);
+        Assert.Equal(1, monitor.StopCount);
+        Assert.Equal(1, monitor.DisposeCount);
+    }
+
+    [Fact]
     public async Task RestartAsync_does_not_start_channels_when_relay_is_stopped()
     {
         var factory = new RecordingWorkerFactory(() => [new RecordingWorker(AudioChannelId.Microphone)]);
@@ -76,25 +115,25 @@ public sealed class AppRuntimeServiceTests
             state.Status == ChannelRuntimeStatus.Error);
     }
 
-    private sealed class RecordingWorkerFactory : ITranslationChannelWorkerFactory
+    private sealed class RecordingWorkerFactory : IAudioChannelWorkerFactory
     {
-        private readonly Func<IReadOnlyList<ITranslationChannelWorker>> _createWorkers;
+        private readonly Func<IReadOnlyList<IAudioChannelWorker>> _createWorkers;
 
-        public RecordingWorkerFactory(Func<IReadOnlyList<ITranslationChannelWorker>> createWorkers)
+        public RecordingWorkerFactory(Func<IReadOnlyList<IAudioChannelWorker>> createWorkers)
         {
             _createWorkers = createWorkers;
         }
 
         public int CreateCalls { get; private set; }
 
-        public IReadOnlyList<ITranslationChannelWorker> CreateWorkers()
+        public IReadOnlyList<IAudioChannelWorker> CreateWorkers()
         {
             CreateCalls++;
             return _createWorkers();
         }
     }
 
-    private sealed class RecordingWorker : ITranslationChannelWorker, IAsyncDisposable
+    private sealed class RecordingWorker : IAudioChannelWorker, IAsyncDisposable
     {
         public RecordingWorker(AudioChannelId channelId)
         {

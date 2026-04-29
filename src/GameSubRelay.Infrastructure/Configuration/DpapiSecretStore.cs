@@ -100,16 +100,20 @@ public sealed class DpapiSecretStore : ISecretStore
             settings.VolcengineAstAccessKey,
             settings.VolcengineTtsAppId,
             settings.VolcengineTtsToken,
-            settings.VolcengineTtsCluster));
+            settings.VolcengineTtsCluster,
+            settings.VolcengineAsrAppKey,
+            settings.VolcengineAsrAccessKey));
 
         public SecretSettings ToSettings() => new(
-            Volcengine.AccessKeyId,
-            Volcengine.SecretAccessKey,
-            Volcengine.AppKey,
-            Volcengine.AstAccessKey,
-            Volcengine.TtsAppId,
-            Volcengine.TtsToken,
-            Volcengine.TtsCluster);
+            Volcengine.AccessKeyId ?? string.Empty,
+            Volcengine.SecretAccessKey ?? string.Empty,
+            Volcengine.AppKey ?? string.Empty,
+            Volcengine.AstAccessKey ?? string.Empty,
+            Volcengine.TtsAppId ?? string.Empty,
+            Volcengine.TtsToken ?? string.Empty,
+            Volcengine.TtsCluster ?? string.Empty,
+            Volcengine.AsrAppKey ?? string.Empty,
+            Volcengine.AsrAccessKey ?? string.Empty);
     }
 
     private sealed record VolcengineSecrets(
@@ -119,7 +123,9 @@ public sealed class DpapiSecretStore : ISecretStore
         string AstAccessKey,
         string TtsAppId,
         string TtsToken,
-        string TtsCluster);
+        string TtsCluster,
+        string AsrAppKey = "",
+        string AsrAccessKey = "");
 
     private static class DpapiCurrentUserProtector
     {

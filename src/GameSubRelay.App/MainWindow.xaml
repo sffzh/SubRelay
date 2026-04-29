@@ -20,7 +20,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock Text="GameSubRelay" FontSize="22" FontWeight="SemiBold" />
-                    <TextBlock Text="配置音频、翻译、字幕浮层和快捷键" Foreground="#586069" />
+                    <TextBlock Text="配置音频、同声传译、语音识别、字幕浮层和快捷键" Foreground="#586069" />
                 </StackPanel>
                 <WrapPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="{Binding RelayStateText}"
@@ -28,7 +28,13 @@
                                Foreground="#586069"
                                Margin="0 0 10 0" />
                     <Button Content="开始同传" Width="88" Margin="0 0 8 0" Command="{Binding StartRelayCommand}" />
-                    <Button Content="停止同传" Width="88" Margin="0 0 12 0" Command="{Binding StopRelayCommand}" />
+                    <Button Content="停止同传" Width="88" Margin="0 0 10 0" Command="{Binding StopRelayCommand}" />
+                    <TextBlock Text="{Binding SpeechRecognitionStateText}"
+                               VerticalAlignment="Center"
+                               Foreground="#586069"
+                               Margin="0 0 10 0" />
+                    <Button Content="开始识别" Width="88" Margin="0 0 8 0" Command="{Binding StartSpeechRecognitionCommand}" />
+                    <Button Content="停止识别" Width="88" Margin="0 0 12 0" Command="{Binding StopSpeechRecognitionCommand}" />
                     <Button Content="打开浮层" Width="88" Margin="0 0 8 0" Command="{Binding OpenOverlayCommand}" />
                     <Button Content="{Binding OverlayLockText}" Width="112" Margin="0 0 8 0" Command="{Binding ToggleOverlayLockCommand}" />
                     <Button Content="隐藏浮层" Width="88" Command="{Binding HideOverlayCommand}" />
@@ -52,8 +58,11 @@
             <TabItem Header="音频">
                 <settings:AudioSettingsView DataContext="{Binding Audio}" />
             </TabItem>
-            <TabItem Header="翻译">
+            <TabItem Header="同声传译">
                 <settings:TranslationSettingsView DataContext="{Binding Translation}" />
+            </TabItem>
+            <TabItem Header="语音识别">
+                <settings:SpeechRecognitionSettingsView DataContext="{Binding SpeechRecognition}" />
             </TabItem>
             <TabItem Header="字幕浮层">
                 <settings:OverlaySettingsView DataContext="{Binding Overlay}" />

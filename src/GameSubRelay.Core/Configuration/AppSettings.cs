@@ -6,6 +6,7 @@ namespace GameSubRelay.Core.Configuration;
 public sealed record AppSettings(
     AudioSettings Audio,
     TranslationSettings Translation,
+    SpeechRecognitionSettings SpeechRecognition,
     OverlaySettings Overlay,
     HotkeySettings Hotkeys,
     TtsSettings Tts,
@@ -14,6 +15,7 @@ public sealed record AppSettings(
     public static AppSettings Default => new(
         Audio: AudioSettings.Default,
         Translation: TranslationSettings.Default,
+        SpeechRecognition: SpeechRecognitionSettings.Default,
         Overlay: OverlaySettings.Default,
         Hotkeys: HotkeySettings.Default,
         Tts: TtsSettings.Default,
@@ -22,6 +24,8 @@ public sealed record AppSettings(
     public AppSettings Normalize()
     {
         var audio = Audio ?? AudioSettings.Default;
+        var translation = (Translation ?? TranslationSettings.Default).Normalize();
+        var speechRecognition = (SpeechRecognition ?? SpeechRecognitionSettings.FromTranslation(translation)).Normalize();
         var tts = Tts ?? new TtsSettings(
             audio.TtsEnabled,
             audio.TtsForMicrophone,
@@ -42,7 +46,8 @@ public sealed record AppSettings(
         return this with
         {
             Audio = audio.Normalize(normalizedTts),
-            Translation = (Translation ?? TranslationSettings.Default).Normalize(),
+            Translation = translation,
+            SpeechRecognition = speechRecognition,
             Overlay = (Overlay ?? OverlaySettings.Default).Normalize(),
             Hotkeys = (Hotkeys ?? HotkeySettings.Default).Normalize(),
             Tts = normalizedTts

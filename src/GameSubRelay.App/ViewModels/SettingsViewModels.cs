@@ -1,6 +1,9 @@
 using System;
 using System.Collections.ObjectModel;
+using GameSubRelay.Core.Audio;
+using GameSubRelay.App.Diagnostics;
 using GameSubRelay.Core.Configuration;
+using GameSubRelay.Core.Runtime;
 using GameSubRelay.Infrastructure.Audio;
 using GameSubRelay.Infrastructure.Runtime;
 
@@ -106,10 +109,14 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
     private string _ttsAppId = string.Empty;
     private string _ttsCluster = "volcengine";
     private string _connectionTestStatus = "未测试";
+    private string _functionTestStatus = "未测试";
+    private bool _isTesting;
+    private Func<CancellationToken, Task<string>>? _testConnectionAsync;
+    private Func<CancellationToken, Task<string>>? _testFunctionAsync;
 
     public ObservableCollection<ProviderOption> Providers { get; } = new()
     {
-        new("VolcengineAstTranslate", "火山语音同传 + 大模型流式识别")
+        new("VolcengineAstTranslate", "火山同声传译 AST")
     };
 
     public ObservableCollection<LanguageOption> AvailableSourceLanguages { get; } = CreateVolcengineAstLanguages();
@@ -176,18 +183,101 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
         private set => SetProperty(ref _connectionTestStatus, value);
     }
 
+    public string FunctionTestStatus
+    {
+        get => _functionTestStatus;
+        private set => SetProperty(ref _functionTestStatus, value);
+    }
+
+    public bool IsTesting
+    {
+        get => _isTesting;
+        private set
+        {
+            if (SetProperty(ref _isTesting, value))
+            {
+                TestConnectionCommand.RaiseCanExecuteChanged();
+                TestFunctionCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
     public RelayCommand TestConnectionCommand { get; }
+    public RelayCommand TestFunctionCommand { get; }
 
     public TranslationSettingsViewModel()
     {
-        TestConnectionCommand = new RelayCommand(TestConnection);
+        TestConnectionCommand = new RelayCommand(async () => await TestConnectionAsync(), () => !IsTesting);
+        TestFunctionCommand = new RelayCommand(async () => await TestFunctionAsync(), () => !IsTesting);
     }
 
-    private void TestConnection()
+    public void SetDiagnostics(
+        Func<CancellationToken, Task<string>> testConnectionAsync,
+        Func<CancellationToken, Task<string>> testFunctionAsync)
     {
-        ConnectionTestStatus = string.IsNullOrWhiteSpace(AccessKeyId) || string.IsNullOrWhiteSpace(SecretAccessKey)
+        _testConnectionAsync = testConnectionAsync;
+        _testFunctionAsync = testFunctionAsync;
+    }
+
+    public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
+    {
+        await RunTestAsync(
+            "正在测试同声传译连接...",
+            result => ConnectionTestStatus = result,
+            _testConnectionAsync,
+            ValidateConnectionLocally,
+            cancellationToken);
+    }
+
+    public async Task TestFunctionAsync(CancellationToken cancellationToken = default)
+    {
+        await RunTestAsync(
+            "正在测试麦克风同声传译...",
+            result => FunctionTestStatus = result,
+            _testFunctionAsync,
+            () => "测试功能需要运行时诊断服务",
+            cancellationToken);
+    }
+
+    private string ValidateConnectionLocally()
+    {
+        return string.IsNullOrWhiteSpace(AccessKeyId) || string.IsNullOrWhiteSpace(SecretAccessKey)
             ? "请填写火山同声传译 APP ID 和 Access Token"
-            : "凭据已填写；AST 与 ASR 连通性会在通道启动时验证";
+            : "凭据已填写；同传连通性会在通道启动时验证";
+    }
+
+    private async Task RunTestAsync(
+        string runningText,
+        Action<string> setStatus,
+        Func<CancellationToken, Task<string>>? handler,
+        Func<string> fallback,
+        CancellationToken cancellationToken)
+    {
+        if (IsTesting)
+        {
+            return;
+        }
+
+        IsTesting = true;
+        setStatus(runningText);
+        try
+        {
+            setStatus(handler is null
+                ? fallback()
+                : await handler(cancellationToken));
+        }
+        catch (OperationCanceledException)
+        {
+            setStatus("测试超时或已取消，请查看日志");
+        }
+        catch (Exception ex)
+        {
+            setStatus($"测试失败：{ex.Message}");
+        }
+        finally
+        {
+            IsTesting = false;
+        }
     }
 
     private static ObservableCollection<LanguageOption> CreateVolcengineAstLanguages() => new()
@@ -201,6 +291,172 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
         new("de", "德语"),
         new("fr", "法语"),
         new("zhen", "中英互译")
+    };
+}
+
+public sealed class SpeechRecognitionSettingsViewModel : ViewModelBase
+{
+    private string _provider = SpeechRecognitionSettings.DefaultProvider;
+    private string _language = SpeechRecognitionSettings.Default.Language;
+    private string _region = SpeechRecognitionSettings.Default.Region;
+    private string _accessKeyId = string.Empty;
+    private string _secretAccessKey = string.Empty;
+    private string _connectionTestStatus = "未测试";
+    private string _functionTestStatus = "未测试";
+    private bool _isTesting;
+    private Func<CancellationToken, Task<string>>? _testConnectionAsync;
+    private Func<CancellationToken, Task<string>>? _testFunctionAsync;
+
+    public ObservableCollection<ProviderOption> Providers { get; } = new()
+    {
+        new(SpeechRecognitionSettings.DefaultProvider, "火山流式语音识别 ASR")
+    };
+
+    public ObservableCollection<LanguageOption> AvailableLanguages { get; } = CreateVolcengineAsrLanguages();
+
+    public string Provider
+    {
+        get => _provider;
+        set => SetProperty(ref _provider, value);
+    }
+
+    public string Language
+    {
+        get => _language;
+        set => SetProperty(ref _language, value);
+    }
+
+    public string Region
+    {
+        get => _region;
+        set => SetProperty(ref _region, value);
+    }
+
+    public string AccessKeyId
+    {
+        get => _accessKeyId;
+        set => SetProperty(ref _accessKeyId, value);
+    }
+
+    public string SecretAccessKey
+    {
+        get => _secretAccessKey;
+        set => SetProperty(ref _secretAccessKey, value);
+    }
+
+    public string ConnectionTestStatus
+    {
+        get => _connectionTestStatus;
+        private set => SetProperty(ref _connectionTestStatus, value);
+    }
+
+    public string FunctionTestStatus
+    {
+        get => _functionTestStatus;
+        private set => SetProperty(ref _functionTestStatus, value);
+    }
+
+    public bool IsTesting
+    {
+        get => _isTesting;
+        private set
+        {
+            if (SetProperty(ref _isTesting, value))
+            {
+                TestConnectionCommand.RaiseCanExecuteChanged();
+                TestFunctionCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public RelayCommand TestConnectionCommand { get; }
+    public RelayCommand TestFunctionCommand { get; }
+
+    public SpeechRecognitionSettingsViewModel()
+    {
+        TestConnectionCommand = new RelayCommand(async () => await TestConnectionAsync(), () => !IsTesting);
+        TestFunctionCommand = new RelayCommand(async () => await TestFunctionAsync(), () => !IsTesting);
+    }
+
+    public void SetDiagnostics(
+        Func<CancellationToken, Task<string>> testConnectionAsync,
+        Func<CancellationToken, Task<string>> testFunctionAsync)
+    {
+        _testConnectionAsync = testConnectionAsync;
+        _testFunctionAsync = testFunctionAsync;
+    }
+
+    public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
+    {
+        await RunTestAsync(
+            "正在测试语音识别连接...",
+            result => ConnectionTestStatus = result,
+            _testConnectionAsync,
+            ValidateConnectionLocally,
+            cancellationToken);
+    }
+
+    public async Task TestFunctionAsync(CancellationToken cancellationToken = default)
+    {
+        await RunTestAsync(
+            "正在测试游戏/系统声音识别...",
+            result => FunctionTestStatus = result,
+            _testFunctionAsync,
+            () => "测试功能需要运行时诊断服务",
+            cancellationToken);
+    }
+
+    private string ValidateConnectionLocally()
+    {
+        return string.IsNullOrWhiteSpace(AccessKeyId) || string.IsNullOrWhiteSpace(SecretAccessKey)
+            ? "请填写火山语音识别 APP ID 和 Access Token"
+            : "凭据已填写；识别连通性会在通道启动时验证";
+    }
+
+    private async Task RunTestAsync(
+        string runningText,
+        Action<string> setStatus,
+        Func<CancellationToken, Task<string>>? handler,
+        Func<string> fallback,
+        CancellationToken cancellationToken)
+    {
+        if (IsTesting)
+        {
+            return;
+        }
+
+        IsTesting = true;
+        setStatus(runningText);
+        try
+        {
+            setStatus(handler is null
+                ? fallback()
+                : await handler(cancellationToken));
+        }
+        catch (OperationCanceledException)
+        {
+            setStatus("测试超时或已取消，请查看日志");
+        }
+        catch (Exception ex)
+        {
+            setStatus($"测试失败：{ex.Message}");
+        }
+        finally
+        {
+            IsTesting = false;
+        }
+    }
+
+    private static ObservableCollection<LanguageOption> CreateVolcengineAsrLanguages() => new()
+    {
+        new("zh", "中文"),
+        new("en", "英语"),
+        new("ja", "日语"),
+        new("id", "印尼语"),
+        new("es", "西班牙语"),
+        new("pt", "葡萄牙语"),
+        new("de", "德语"),
+        new("fr", "法语")
     };
 }
 
@@ -275,10 +531,13 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly ISettingsStore _settingsStore;
     private readonly ISecretStore _secretStore;
     private readonly INaudioDeviceService? _audioDeviceService;
+    private readonly IRelayDiagnosticsService? _diagnosticsService;
     private IAppRuntimeService? _runtimeService;
     private string _statusText = string.Empty;
     private bool _isRelayRunning;
     private bool _isRelayBusy;
+    private bool _isSpeechRecognitionRunning;
+    private bool _isSpeechRecognitionBusy;
 
     public SettingsViewModel(
         OverlayViewModel overlayViewModel,
@@ -302,16 +561,20 @@ public sealed class SettingsViewModel : ViewModelBase
         ISettingsStore settingsStore,
         ISecretStore secretStore,
         INaudioDeviceService? audioDeviceService,
-        IAppRuntimeService? runtimeService)
+        IAppRuntimeService? runtimeService,
+        IRelayDiagnosticsService? diagnosticsService = null)
     {
         _overlayViewModel = overlayViewModel;
         _settingsStore = settingsStore;
         _secretStore = secretStore;
         _audioDeviceService = audioDeviceService;
         _runtimeService = runtimeService;
-        _isRelayRunning = runtimeService?.IsRunning ?? false;
+        _diagnosticsService = diagnosticsService;
+        _isRelayRunning = runtimeService?.IsChannelRunning(AudioChannelId.Microphone) ?? false;
+        _isSpeechRecognitionRunning = runtimeService?.IsChannelRunning(AudioChannelId.Monitor) ?? false;
         Audio = new AudioSettingsViewModel();
         Translation = new TranslationSettingsViewModel();
+        SpeechRecognition = new SpeechRecognitionSettingsViewModel();
         Overlay = overlayViewModel.Settings;
         Tts = new TtsSettingsViewModel();
         Hotkeys = new HotkeySettingsViewModel();
@@ -319,10 +582,17 @@ public sealed class SettingsViewModel : ViewModelBase
         SaveCommand = new RelayCommand(async () => await SaveCommandAsync());
         StartRelayCommand = new RelayCommand(async () => await StartRelayCommandAsync(), CanStartRelay);
         StopRelayCommand = new RelayCommand(async () => await StopRelayCommandAsync(), CanStopRelay);
+        StartSpeechRecognitionCommand = new RelayCommand(
+            async () => await StartSpeechRecognitionCommandAsync(),
+            CanStartSpeechRecognition);
+        StopSpeechRecognitionCommand = new RelayCommand(
+            async () => await StopSpeechRecognitionCommandAsync(),
+            CanStopSpeechRecognition);
         RefreshAudioDevicesCommand = new RelayCommand(async () => await RefreshAudioDevicesCommandAsync());
         OpenOverlayCommand = new RelayCommand(OpenOverlay);
         HideOverlayCommand = new RelayCommand(HideOverlay);
         ToggleOverlayLockCommand = new RelayCommand(ToggleOverlayLock);
+        AttachDiagnostics();
     }
 
     public string WindowTitle
@@ -333,6 +603,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public AudioSettingsViewModel Audio { get; }
     public TranslationSettingsViewModel Translation { get; }
+    public SpeechRecognitionSettingsViewModel SpeechRecognition { get; }
     public OverlayRenderSettings Overlay { get; }
     public TtsSettingsViewModel Tts { get; }
     public HotkeySettingsViewModel Hotkeys { get; }
@@ -341,6 +612,8 @@ public sealed class SettingsViewModel : ViewModelBase
     public RelayCommand SaveCommand { get; }
     public RelayCommand StartRelayCommand { get; }
     public RelayCommand StopRelayCommand { get; }
+    public RelayCommand StartSpeechRecognitionCommand { get; }
+    public RelayCommand StopSpeechRecognitionCommand { get; }
     public RelayCommand RefreshAudioDevicesCommand { get; }
     public RelayCommand OpenOverlayCommand { get; }
     public RelayCommand HideOverlayCommand { get; }
@@ -353,8 +626,22 @@ public sealed class SettingsViewModel : ViewModelBase
     public void AttachRuntimeService(IAppRuntimeService runtimeService)
     {
         _runtimeService = runtimeService ?? throw new ArgumentNullException(nameof(runtimeService));
-        IsRelayRunning = runtimeService.IsRunning;
+        UpdateRuntimeStates();
         RefreshRelayCommands();
+    }
+
+    public void ApplyRuntimeChannelState(ChannelRuntimeState state)
+    {
+        var isRunning = state.Status is not ChannelRuntimeStatus.Stopped and not ChannelRuntimeStatus.Error;
+        switch (state.ChannelId)
+        {
+            case AudioChannelId.Microphone:
+                IsRelayRunning = isRunning;
+                break;
+            case AudioChannelId.Monitor:
+                IsSpeechRecognitionRunning = isRunning;
+                break;
+        }
     }
 
     public bool IsRelayRunning
@@ -382,7 +669,34 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
+    public bool IsSpeechRecognitionRunning
+    {
+        get => _isSpeechRecognitionRunning;
+        private set
+        {
+            if (SetProperty(ref _isSpeechRecognitionRunning, value))
+            {
+                OnPropertyChanged(nameof(SpeechRecognitionStateText));
+                RefreshRelayCommands();
+            }
+        }
+    }
+
+    public bool IsSpeechRecognitionBusy
+    {
+        get => _isSpeechRecognitionBusy;
+        private set
+        {
+            if (SetProperty(ref _isSpeechRecognitionBusy, value))
+            {
+                RefreshRelayCommands();
+            }
+        }
+    }
+
     public string RelayStateText => IsRelayRunning ? "同传运行中" : "同传已停止";
+
+    public string SpeechRecognitionStateText => IsSpeechRecognitionRunning ? "识别运行中" : "识别已停止";
 
     public string StatusText
     {
@@ -505,13 +819,13 @@ public sealed class SettingsViewModel : ViewModelBase
         {
             Apply();
             StatusText = "正在开始同声传译...";
-            await _runtimeService.StartRelayAsync();
-            IsRelayRunning = _runtimeService.IsRunning;
+            await _runtimeService.StartChannelAsync(AudioChannelId.Microphone);
+            UpdateRuntimeStates();
             StatusText = IsRelayRunning ? "同声传译已开始" : "同声传译启动失败，请查看日志";
         }
         catch (Exception ex)
         {
-            IsRelayRunning = _runtimeService.IsRunning;
+            UpdateRuntimeStates();
             StatusText = $"开始失败：{ex.Message}";
         }
         finally
@@ -532,18 +846,73 @@ public sealed class SettingsViewModel : ViewModelBase
         try
         {
             StatusText = "正在停止同声传译...";
-            await _runtimeService.StopRelayAsync();
-            IsRelayRunning = _runtimeService.IsRunning;
+            await _runtimeService.StopChannelAsync(AudioChannelId.Microphone);
+            UpdateRuntimeStates();
             StatusText = "同声传译已停止";
         }
         catch (Exception ex)
         {
-            IsRelayRunning = _runtimeService.IsRunning;
+            UpdateRuntimeStates();
             StatusText = $"停止失败：{ex.Message}";
         }
         finally
         {
             IsRelayBusy = false;
+        }
+    }
+
+    private async Task StartSpeechRecognitionCommandAsync()
+    {
+        if (_runtimeService is null)
+        {
+            StatusText = "运行时服务未启用";
+            return;
+        }
+
+        IsSpeechRecognitionBusy = true;
+        try
+        {
+            Apply();
+            StatusText = "正在开始语音识别...";
+            await _runtimeService.StartChannelAsync(AudioChannelId.Monitor);
+            UpdateRuntimeStates();
+            StatusText = IsSpeechRecognitionRunning ? "语音识别已开始" : "语音识别启动失败，请查看日志";
+        }
+        catch (Exception ex)
+        {
+            UpdateRuntimeStates();
+            StatusText = $"开始语音识别失败：{ex.Message}";
+        }
+        finally
+        {
+            IsSpeechRecognitionBusy = false;
+        }
+    }
+
+    private async Task StopSpeechRecognitionCommandAsync()
+    {
+        if (_runtimeService is null)
+        {
+            StatusText = "运行时服务未启用";
+            return;
+        }
+
+        IsSpeechRecognitionBusy = true;
+        try
+        {
+            StatusText = "正在停止语音识别...";
+            await _runtimeService.StopChannelAsync(AudioChannelId.Monitor);
+            UpdateRuntimeStates();
+            StatusText = "语音识别已停止";
+        }
+        catch (Exception ex)
+        {
+            UpdateRuntimeStates();
+            StatusText = $"停止语音识别失败：{ex.Message}";
+        }
+        finally
+        {
+            IsSpeechRecognitionBusy = false;
         }
     }
 
@@ -557,10 +926,54 @@ public sealed class SettingsViewModel : ViewModelBase
         return _runtimeService is not null && IsRelayRunning && !IsRelayBusy;
     }
 
+    private bool CanStartSpeechRecognition()
+    {
+        return _runtimeService is not null && !IsSpeechRecognitionRunning && !IsSpeechRecognitionBusy;
+    }
+
+    private bool CanStopSpeechRecognition()
+    {
+        return _runtimeService is not null && IsSpeechRecognitionRunning && !IsSpeechRecognitionBusy;
+    }
+
     private void RefreshRelayCommands()
     {
         StartRelayCommand.RaiseCanExecuteChanged();
         StopRelayCommand.RaiseCanExecuteChanged();
+        StartSpeechRecognitionCommand.RaiseCanExecuteChanged();
+        StopSpeechRecognitionCommand.RaiseCanExecuteChanged();
+    }
+
+    private void UpdateRuntimeStates()
+    {
+        if (_runtimeService is null)
+        {
+            IsRelayRunning = false;
+            IsSpeechRecognitionRunning = false;
+            return;
+        }
+
+        IsRelayRunning = _runtimeService.IsChannelRunning(AudioChannelId.Microphone);
+        IsSpeechRecognitionRunning = _runtimeService.IsChannelRunning(AudioChannelId.Monitor);
+    }
+
+    private void AttachDiagnostics()
+    {
+        if (_diagnosticsService is null)
+        {
+            return;
+        }
+
+        Translation.SetDiagnostics(
+            cancellationToken => _diagnosticsService.TestTranslationConnectionAsync(Translation, cancellationToken),
+            cancellationToken => IsRelayRunning
+                ? Task.FromResult("请先停止当前同传，再测试麦克风功能")
+                : _diagnosticsService.TestTranslationFunctionAsync(Translation, Audio, cancellationToken));
+        SpeechRecognition.SetDiagnostics(
+            cancellationToken => _diagnosticsService.TestSpeechRecognitionConnectionAsync(SpeechRecognition, cancellationToken),
+            cancellationToken => IsSpeechRecognitionRunning
+                ? Task.FromResult("请先停止当前语音识别，再测试语音识别功能")
+                : _diagnosticsService.TestSpeechRecognitionFunctionAsync(SpeechRecognition, Audio, cancellationToken));
     }
 
     private void OpenOverlay()
@@ -601,6 +1014,18 @@ public sealed class SettingsViewModel : ViewModelBase
         Translation.TtsAppId = secrets.VolcengineTtsAppId;
         Translation.TtsToken = secrets.VolcengineTtsToken;
         Translation.TtsCluster = secrets.VolcengineTtsCluster;
+
+        SpeechRecognition.Provider = settings.SpeechRecognition.Provider;
+        SpeechRecognition.Language = settings.SpeechRecognition.Language;
+        SpeechRecognition.Region = settings.SpeechRecognition.Region;
+        SpeechRecognition.AccessKeyId = FirstNonEmpty(
+            secrets.VolcengineAsrAppKey,
+            secrets.VolcengineAppKey,
+            secrets.VolcengineAccessKeyId);
+        SpeechRecognition.SecretAccessKey = FirstNonEmpty(
+            secrets.VolcengineAsrAccessKey,
+            secrets.VolcengineAstAccessKey,
+            secrets.VolcengineSecretAccessKey);
 
         Overlay.Left = settings.Overlay.Left;
         Overlay.Top = settings.Overlay.Top;
@@ -643,6 +1068,10 @@ public sealed class SettingsViewModel : ViewModelBase
                 Translation.SourceLanguage,
                 Translation.TargetLanguage,
                 Translation.Region),
+            new SpeechRecognitionSettings(
+                SpeechRecognition.Provider,
+                SpeechRecognition.Language,
+                SpeechRecognition.Region),
             new OverlaySettings(
                 ToInt(Overlay.Left),
                 ToInt(Overlay.Top),
@@ -668,7 +1097,9 @@ public sealed class SettingsViewModel : ViewModelBase
             Translation.SecretAccessKey,
             Translation.TtsAppId,
             Translation.TtsToken,
-            Translation.TtsCluster);
+            Translation.TtsCluster,
+            SpeechRecognition.AccessKeyId,
+            SpeechRecognition.SecretAccessKey);
     }
 
     private static void ReplaceDeviceOptions(

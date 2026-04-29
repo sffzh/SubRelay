@@ -3,57 +3,45 @@ using System.Threading;
 using System.Threading.Tasks;
 using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Captions;
-using GameSubRelay.Core.Translation;
+using GameSubRelay.Core.SpeechRecognition;
 using Microsoft.Extensions.Logging;
 
 namespace GameSubRelay.Infrastructure.Runtime;
 
-public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDisposable
+public sealed class SpeechRecognitionChannelWorker : IAudioChannelWorker, IAsyncDisposable
 {
-    private readonly IAudioFrameSource? _frameSource;
-    private readonly ISpeechTranslationProvider? _translationProvider;
-    private readonly SpeechTranslationSessionOptions? _sessionOptions;
-    private readonly CaptionStore? _captionStore;
+    private readonly IAudioFrameSource _frameSource;
+    private readonly ISpeechRecognitionProvider _recognitionProvider;
+    private readonly SpeechRecognitionSessionOptions _sessionOptions;
+    private readonly CaptionStore _captionStore;
     private readonly ILogger _logger;
     private readonly object _sync = new();
 
     private CancellationTokenSource? _runCts;
-    private ISpeechTranslationSession? _session;
+    private ISpeechRecognitionSession? _session;
     private Task? _sendLoop;
     private Task? _readLoop;
     private bool _isRunning;
 
-    public AudioChannelId ChannelId { get; }
-
-    public event EventHandler? StateChanged;
-
-    public TranslationChannelWorker(NoopChannelExecutionStrategy strategy, ILogger<TranslationChannelWorker> logger)
-    {
-        strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-        ChannelId = strategy.ChannelName switch
-        {
-            "Monitor" => AudioChannelId.Monitor,
-            _ => AudioChannelId.Microphone
-        };
-    }
-
-    public TranslationChannelWorker(
+    public SpeechRecognitionChannelWorker(
         AudioChannelId channelId,
         IAudioFrameSource frameSource,
-        ISpeechTranslationProvider translationProvider,
-        SpeechTranslationSessionOptions sessionOptions,
+        ISpeechRecognitionProvider recognitionProvider,
+        SpeechRecognitionSessionOptions sessionOptions,
         CaptionStore captionStore,
-        ILogger<TranslationChannelWorker> logger)
+        ILogger<SpeechRecognitionChannelWorker> logger)
     {
         ChannelId = channelId;
         _frameSource = frameSource ?? throw new ArgumentNullException(nameof(frameSource));
-        _translationProvider = translationProvider ?? throw new ArgumentNullException(nameof(translationProvider));
+        _recognitionProvider = recognitionProvider ?? throw new ArgumentNullException(nameof(recognitionProvider));
         _sessionOptions = sessionOptions ?? throw new ArgumentNullException(nameof(sessionOptions));
         _captionStore = captionStore ?? throw new ArgumentNullException(nameof(captionStore));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
+
+    public AudioChannelId ChannelId { get; }
+
+    public event EventHandler? StateChanged;
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -69,34 +57,28 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
         }
 
         _logger.LogInformation(
-            "Start channel {ChannelId}: mode={Mode}, language={SourceLanguage}->{TargetLanguage}.",
+            "Start speech recognition channel {ChannelId}: language={Language}, region={Region}.",
             ChannelId,
-            _sessionOptions?.Mode ?? "<none>",
-            _sessionOptions?.SourceLanguage ?? "<none>",
-            _sessionOptions?.TargetLanguage ?? "<none>");
+            _sessionOptions.Language,
+            _sessionOptions.Region);
         StateChanged?.Invoke(this, EventArgs.Empty);
-
-        if (_frameSource is null || _translationProvider is null || _sessionOptions is null || _captionStore is null)
-        {
-            return;
-        }
 
         try
         {
             var runToken = _runCts!.Token;
             await _frameSource.StartAsync(runToken);
-            _logger.LogInformation("Audio frame source started for channel {ChannelId}.", ChannelId);
-            _session = await _translationProvider.StartSessionAsync(ChannelId, _sessionOptions, runToken);
-            _logger.LogInformation("Translation session started for channel {ChannelId}.", ChannelId);
+            _logger.LogInformation("Audio frame source started for speech recognition channel {ChannelId}.", ChannelId);
+            _session = await _recognitionProvider.StartSessionAsync(ChannelId, _sessionOptions, runToken);
+            _logger.LogInformation("Speech recognition session started for channel {ChannelId}.", ChannelId);
 
             _sendLoop = Task.Run(() => SendLoopAsync(runToken), CancellationToken.None);
             _readLoop = Task.Run(() => ReadLoopAsync(runToken), CancellationToken.None);
-            _logger.LogInformation("Channel {ChannelId} send/read loops started.", ChannelId);
+            _logger.LogInformation("Speech recognition channel {ChannelId} send/read loops started.", ChannelId);
         }
         catch (Exception ex)
         {
             await StopAsync(CancellationToken.None);
-            _logger.LogError(ex, "Failed while starting channel {ChannelId}.", ChannelId);
+            _logger.LogError(ex, "Failed while starting speech recognition channel {ChannelId}.", ChannelId);
             throw;
         }
     }
@@ -104,8 +86,7 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         CancellationTokenSource? runCts;
-        ISpeechTranslationSession? session;
-        IAudioFrameSource? frameSource;
+        ISpeechRecognitionSession? session;
         Task? sendLoop;
         Task? readLoop;
 
@@ -119,7 +100,6 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
             _isRunning = false;
             runCts = _runCts;
             session = _session;
-            frameSource = _frameSource;
             sendLoop = _sendLoop;
             readLoop = _readLoop;
             _runCts = null;
@@ -128,17 +108,13 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
             _readLoop = null;
         }
 
-        _logger.LogInformation("Stop channel {ChannelId}.", ChannelId);
+        _logger.LogInformation("Stop speech recognition channel {ChannelId}.", ChannelId);
         runCts?.Cancel();
-
-        if (frameSource is not null)
-        {
-            await frameSource.StopAsync();
-        }
+        await _frameSource.StopAsync();
 
         if (session is not null)
         {
-            _logger.LogInformation("Completing translation session for channel {ChannelId}.", ChannelId);
+            _logger.LogInformation("Completing speech recognition session for channel {ChannelId}.", ChannelId);
             await session.CompleteAsync(cancellationToken);
             await session.DisposeAsync();
         }
@@ -151,7 +127,7 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
 
     private async Task SendLoopAsync(CancellationToken cancellationToken)
     {
-        if (_frameSource is null || _session is null)
+        if (_session is null)
         {
             return;
         }
@@ -172,12 +148,12 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Audio send loop failed for channel {ChannelId}.", ChannelId);
+            _logger.LogError(ex, "Speech recognition audio send loop failed for channel {ChannelId}.", ChannelId);
         }
         finally
         {
             _logger.LogInformation(
-                "Audio send loop ended for channel {ChannelId}: frames={Frames}, bytes={Bytes}.",
+                "Speech recognition audio send loop ended for channel {ChannelId}: frames={Frames}, bytes={Bytes}.",
                 ChannelId,
                 framesSent,
                 bytesSent);
@@ -186,7 +162,7 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
 
     private async Task ReadLoopAsync(CancellationToken cancellationToken)
     {
-        if (_captionStore is null || _session is null)
+        if (_session is null)
         {
             return;
         }
@@ -196,15 +172,14 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
         {
             await foreach (var segment in _session.ReadSegmentsAsync(cancellationToken))
             {
-                _captionStore.ApplySegment(segment);
+                _captionStore.ApplyRecognitionSegment(segment);
                 segmentsRead++;
                 _logger.LogDebug(
-                    "Applied caption segment for channel {ChannelId}: sequence={Sequence}, stability={Stability}, sourceChars={SourceChars}, translatedChars={TranslatedChars}.",
+                    "Applied recognition caption segment for channel {ChannelId}: sequence={Sequence}, stability={Stability}, textChars={TextChars}.",
                     ChannelId,
                     segment.ProviderSequence,
                     segment.Stability,
-                    segment.SourceText.Length,
-                    segment.TranslatedText.Length);
+                    segment.Text.Length);
             }
         }
         catch (OperationCanceledException)
@@ -212,12 +187,12 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Caption read loop failed for channel {ChannelId}.", ChannelId);
+            _logger.LogError(ex, "Speech recognition caption read loop failed for channel {ChannelId}.", ChannelId);
         }
         finally
         {
             _logger.LogInformation(
-                "Caption read loop ended for channel {ChannelId}: segments={Segments}.",
+                "Speech recognition caption read loop ended for channel {ChannelId}: segments={Segments}.",
                 ChannelId,
                 segmentsRead);
         }
@@ -242,9 +217,6 @@ public sealed class TranslationChannelWorker : IAudioChannelWorker, IAsyncDispos
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
-        if (_frameSource is not null)
-        {
-            await _frameSource.DisposeAsync();
-        }
+        await _frameSource.DisposeAsync();
     }
 }

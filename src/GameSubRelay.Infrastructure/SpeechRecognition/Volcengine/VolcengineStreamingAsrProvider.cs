@@ -1,12 +1,13 @@
 using System.Runtime.CompilerServices;
 using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Captions;
-using GameSubRelay.Core.Translation;
+using GameSubRelay.Core.SpeechRecognition;
+using GameSubRelay.Infrastructure.Volcengine;
 using Microsoft.Extensions.Logging;
 
-namespace GameSubRelay.Infrastructure.Translation.Volcengine;
+namespace GameSubRelay.Infrastructure.SpeechRecognition.Volcengine;
 
-public sealed class VolcengineStreamingAsrProvider : ISpeechTranslationProvider
+public sealed class VolcengineStreamingAsrProvider : ISpeechRecognitionProvider
 {
     private readonly VolcengineStreamingAsrOptions _options;
     private readonly VolcengineStreamingAsrProtocolCodec _codec;
@@ -30,21 +31,21 @@ public sealed class VolcengineStreamingAsrProvider : ISpeechTranslationProvider
         _logger = logger;
     }
 
-    public async Task<ISpeechTranslationSession> StartSessionAsync(
+    public async Task<ISpeechRecognitionSession> StartSessionAsync(
         AudioChannelId channelId,
-        SpeechTranslationSessionOptions options,
+        SpeechRecognitionSessionOptions options,
         CancellationToken cancellationToken = default)
     {
         _options.EnsureCredentialsPresent();
 
         var connectId = Guid.NewGuid().ToString("D");
         _logger?.LogInformation(
-            "Starting streaming ASR session for {ChannelId}: endpoint={Endpoint}, resource={ResourceId}, connectId={ConnectId}, language={SourceLanguage}.",
+            "Starting streaming ASR session for {ChannelId}: endpoint={Endpoint}, resource={ResourceId}, connectId={ConnectId}, language={Language}.",
             channelId,
             _options.Endpoint,
             _options.ResourceId,
             connectId,
-            options.SourceLanguage);
+            options.Language);
 
         var transport = _transportFactory();
         await transport
@@ -57,12 +58,12 @@ public sealed class VolcengineStreamingAsrProvider : ISpeechTranslationProvider
     }
 }
 
-public sealed class VolcengineStreamingAsrSession : ISpeechTranslationSession
+public sealed class VolcengineStreamingAsrSession : ISpeechRecognitionSession
 {
     private const int AudioChunkBytes = 16_000 * 2 * 200 / 1_000;
 
     private readonly AudioChannelId _channelId;
-    private readonly SpeechTranslationSessionOptions _options;
+    private readonly SpeechRecognitionSessionOptions _options;
     private readonly VolcengineStreamingAsrProtocolCodec _codec;
     private readonly IStreamingAsrWebSocketTransport _transport;
     private readonly ILogger? _logger;
@@ -76,7 +77,7 @@ public sealed class VolcengineStreamingAsrSession : ISpeechTranslationSession
 
     public VolcengineStreamingAsrSession(
         AudioChannelId channelId,
-        SpeechTranslationSessionOptions options,
+        SpeechRecognitionSessionOptions options,
         VolcengineStreamingAsrProtocolCodec codec,
         IStreamingAsrWebSocketTransport transport,
         ILogger? logger = null)
@@ -90,11 +91,11 @@ public sealed class VolcengineStreamingAsrSession : ISpeechTranslationSession
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var mappedLanguage = MapLanguage(_options.SourceLanguage);
+        var mappedLanguage = MapLanguage(_options.Language);
         _logger?.LogInformation(
-            "Sending streaming ASR full client request: channel={ChannelId}, sourceLanguage={SourceLanguage}, mappedLanguage={MappedLanguage}.",
+            "Sending streaming ASR full client request: channel={ChannelId}, language={Language}, mappedLanguage={MappedLanguage}.",
             _channelId,
-            _options.SourceLanguage,
+            _options.Language,
             mappedLanguage ?? "<auto>");
         var payload = _codec.EncodeFullClientRequest(new VolcengineStreamingAsrStartRequest(
             mappedLanguage));
@@ -165,7 +166,7 @@ public sealed class VolcengineStreamingAsrSession : ISpeechTranslationSession
         _completed = true;
     }
 
-    public async IAsyncEnumerable<TranslationSegment> ReadSegmentsAsync(
+    public async IAsyncEnumerable<SpeechRecognitionSegment> ReadSegmentsAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         EnsureStarted();
@@ -183,7 +184,27 @@ public sealed class VolcengineStreamingAsrSession : ISpeechTranslationSession
                 yield break;
             }
 
-            var message = _codec.DecodeServerResponse(payload);
+            var frameDescription = VolcengineStreamingAsrProtocolCodec.DescribeServerResponseFrame(payload);
+            _logger?.LogDebug(
+                "Streaming ASR server frame: channel={ChannelId}, {FrameDescription}.",
+                _channelId,
+                frameDescription);
+
+            VolcengineStreamingAsrServerMessage message;
+            try
+            {
+                message = _codec.DecodeServerResponse(payload);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(
+                    ex,
+                    "Failed to decode streaming ASR server frame: channel={ChannelId}, {FrameDescription}.",
+                    _channelId,
+                    frameDescription);
+                throw;
+            }
+
             _serverMessagesReceived++;
             if (message.ErrorCode is not null)
             {
@@ -222,13 +243,11 @@ public sealed class VolcengineStreamingAsrSession : ISpeechTranslationSession
                 utterance?.StartTimeMs ?? 0,
                 utterance?.EndTimeMs ?? 0,
                 message.Utterances.Count);
-            yield return new TranslationSegment(
+            yield return new SpeechRecognitionSegment(
                 _channelId,
                 sequence,
-                _options.SourceLanguage,
-                _options.TargetLanguage,
+                _options.Language,
                 text.Trim(),
-                string.Empty,
                 isFinal ? SegmentStability.Final : SegmentStability.Interim,
                 TimeSpan.FromMilliseconds(utterance?.StartTimeMs ?? 0),
                 TimeSpan.FromMilliseconds(utterance?.EndTimeMs ?? 0));

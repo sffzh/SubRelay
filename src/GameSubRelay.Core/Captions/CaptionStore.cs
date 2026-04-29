@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using GameSubRelay.Core.Audio;
+using GameSubRelay.Core.SpeechRecognition;
 using GameSubRelay.Core.Translation;
 
 namespace GameSubRelay.Core.Captions;
@@ -69,6 +70,40 @@ public sealed class CaptionStore
             }
 
             aggregate.ApplySegment(segment, now);
+
+            if (isNew)
+            {
+                TrimToMaxLines();
+            }
+
+            shouldNotify = true;
+        }
+
+        if (shouldNotify)
+        {
+            NotifyChanged();
+        }
+    }
+
+    public void ApplyRecognitionSegment(SpeechRecognitionSegment segment, DateTimeOffset? observedAt = null)
+    {
+        bool shouldNotify;
+        lock (_sync)
+        {
+            var key = new CaptionKey(segment.ChannelId, segment.ProviderSequence);
+            var now = observedAt ?? DateTimeOffset.UtcNow;
+            var aggregate = _aggregates.GetValueOrDefault(key);
+            var isNew = false;
+
+            if (aggregate is null)
+            {
+                aggregate = new CaptionAggregate(segment.ChannelId);
+                _aggregates[key] = aggregate;
+                _orderedKeys.Add(key);
+                isNew = true;
+            }
+
+            aggregate.ApplyRecognitionSegment(segment, now);
 
             if (isNew)
             {
@@ -162,6 +197,19 @@ public sealed class CaptionStore
                     SourceStability = SegmentStability.Final;
                     TranslatedStability = SegmentStability.Final;
                 }
+            }
+
+            LastUpdatedAt = observedAt;
+        }
+
+        public void ApplyRecognitionSegment(SpeechRecognitionSegment segment, DateTimeOffset observedAt)
+        {
+            if (!string.IsNullOrEmpty(segment.Text))
+            {
+                SourceText = segment.Text;
+                SourceStability = segment.Stability == SegmentStability.Final || SourceStability == SegmentStability.Final
+                    ? SegmentStability.Final
+                    : SegmentStability.Interim;
             }
 
             LastUpdatedAt = observedAt;

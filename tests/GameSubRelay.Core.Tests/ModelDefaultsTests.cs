@@ -30,6 +30,8 @@ public class ModelDefaultsTests
         Assert.Equal("en", appSettings.Translation.SourceLanguage);
         Assert.Equal("zh", appSettings.Translation.TargetLanguage);
         Assert.Equal("cn-north-1", appSettings.Translation.Region);
+        Assert.Equal("en", appSettings.SpeechRecognition.Language);
+        Assert.Equal("cn-north-1", appSettings.SpeechRecognition.Region);
     }
 
     [Fact]

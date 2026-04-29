@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GameSubRelay.Core.Audio;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using GameSubRelay.Core.Runtime;
@@ -10,17 +11,17 @@ namespace GameSubRelay.Infrastructure.Runtime;
 
 public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
 {
-    private readonly ITranslationChannelWorkerFactory _workerFactory;
+    private readonly IAudioChannelWorkerFactory _workerFactory;
     private readonly ILogger<AppRuntimeService> _logger;
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
-    private List<ITranslationChannelWorker> _channelWorkers = [];
+    private readonly Dictionary<AudioChannelId, IAudioChannelWorker> _channelWorkers = [];
 
     public event EventHandler<ChannelRuntimeState> ChannelStateChanged = delegate { };
 
-    public bool IsRunning { get; private set; }
+    public bool IsRunning => _channelWorkers.Count > 0;
 
     public AppRuntimeService(
-        ITranslationChannelWorkerFactory workerFactory,
+        IAudioChannelWorkerFactory workerFactory,
         ILogger<AppRuntimeService> logger)
     {
         _workerFactory = workerFactory;
@@ -44,15 +45,8 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
         await _lifecycleLock.WaitAsync(cancellationToken);
         try
         {
-            if (IsRunning)
-            {
-                _logger.LogInformation("Runtime start requested while relay is already running.");
-                return;
-            }
-
             _logger.LogInformation("Runtime start requested.");
-            var startedCount = await StartChannelsAsync(cancellationToken);
-            IsRunning = startedCount > 0;
+            var startedCount = await StartChannelsAsync(channelIds: null, cancellationToken);
             _logger.LogInformation(
                 "Runtime start completed: startedChannels={StartedCount}, isRunning={IsRunning}.",
                 startedCount,
@@ -69,16 +63,73 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
         await _lifecycleLock.WaitAsync(cancellationToken);
         try
         {
-            if (!IsRunning && _channelWorkers.Count == 0)
+            if (!IsRunning)
             {
                 _logger.LogInformation("Runtime stop requested while relay is already stopped.");
                 return;
             }
 
             _logger.LogInformation("Runtime stop requested.");
-            await StopChannelsAsync(cancellationToken);
-            IsRunning = false;
+            await StopChannelsAsync(channelIds: null, cancellationToken);
             _logger.LogInformation("Runtime stop completed.");
+        }
+        finally
+        {
+            _lifecycleLock.Release();
+        }
+    }
+
+    public bool IsChannelRunning(AudioChannelId channelId)
+    {
+        return _channelWorkers.ContainsKey(channelId);
+    }
+
+    public async Task StartChannelAsync(
+        AudioChannelId channelId,
+        CancellationToken cancellationToken = default)
+    {
+        await _lifecycleLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_channelWorkers.ContainsKey(channelId))
+            {
+                _logger.LogInformation("Runtime channel start requested while {ChannelId} is already running.", channelId);
+                return;
+            }
+
+            _logger.LogInformation("Runtime channel start requested: {ChannelId}.", channelId);
+            var startedCount = await StartChannelsAsync([channelId], cancellationToken);
+            _logger.LogInformation(
+                "Runtime channel start completed: channel={ChannelId}, startedChannels={StartedCount}, isRunning={IsRunning}.",
+                channelId,
+                startedCount,
+                IsRunning);
+        }
+        finally
+        {
+            _lifecycleLock.Release();
+        }
+    }
+
+    public async Task StopChannelAsync(
+        AudioChannelId channelId,
+        CancellationToken cancellationToken = default)
+    {
+        await _lifecycleLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!_channelWorkers.ContainsKey(channelId))
+            {
+                _logger.LogInformation("Runtime channel stop requested while {ChannelId} is already stopped.", channelId);
+                return;
+            }
+
+            _logger.LogInformation("Runtime channel stop requested: {ChannelId}.", channelId);
+            await StopChannelsAsync([channelId], cancellationToken);
+            _logger.LogInformation(
+                "Runtime channel stop completed: channel={ChannelId}, isRunning={IsRunning}.",
+                channelId,
+                IsRunning);
         }
         finally
         {
@@ -98,10 +149,13 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
             }
 
             _logger.LogInformation("Runtime restart requested.");
-            await StopChannelsAsync(cancellationToken);
-            var startedCount = await StartChannelsAsync(cancellationToken);
-            IsRunning = startedCount > 0;
-            _logger.LogInformation("Runtime restart completed.");
+            var runningChannelIds = _channelWorkers.Keys.ToArray();
+            await StopChannelsAsync(runningChannelIds, cancellationToken);
+            var startedCount = await StartChannelsAsync(runningChannelIds, cancellationToken);
+            _logger.LogInformation(
+                "Runtime restart completed: startedChannels={StartedCount}, isRunning={IsRunning}.",
+                startedCount,
+                IsRunning);
         }
         finally
         {
@@ -109,18 +163,33 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
         }
     }
 
-    private async Task<int> StartChannelsAsync(CancellationToken stoppingToken)
+    private async Task<int> StartChannelsAsync(
+        IEnumerable<AudioChannelId>? channelIds,
+        CancellationToken stoppingToken)
     {
         var workers = _workerFactory.CreateWorkers().ToList();
+        var requested = channelIds?.ToHashSet();
         var startedCount = 0;
-        _channelWorkers = [];
         _logger.LogInformation("Created {WorkerCount} runtime channel workers.", workers.Count);
         foreach (var worker in workers)
         {
+            if (requested is not null && !requested.Contains(worker.ChannelId))
+            {
+                await DisposeWorkerAsync(worker);
+                continue;
+            }
+
+            if (_channelWorkers.ContainsKey(worker.ChannelId))
+            {
+                _logger.LogInformation("Skipping already running channel {ChannelId}.", worker.ChannelId);
+                await DisposeWorkerAsync(worker);
+                continue;
+            }
+
             try
             {
                 await worker.StartAsync(stoppingToken);
-                _channelWorkers.Add(worker);
+                _channelWorkers[worker.ChannelId] = worker;
                 startedCount++;
                 ChannelStateChanged(this, new ChannelRuntimeState(
                     worker.ChannelId,
@@ -131,10 +200,7 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to start channel {ChannelId}", worker.ChannelId);
-                if (worker is IAsyncDisposable disposable)
-                {
-                    await disposable.DisposeAsync();
-                }
+                await DisposeWorkerAsync(worker);
 
                 ChannelStateChanged(this, new ChannelRuntimeState(
                     worker.ChannelId,
@@ -153,8 +219,7 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
         await _lifecycleLock.WaitAsync(cancellationToken);
         try
         {
-            await StopChannelsAsync(cancellationToken);
-            IsRunning = false;
+            await StopChannelsAsync(channelIds: null, cancellationToken);
         }
         finally
         {
@@ -164,17 +229,21 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
         await base.StopAsync(cancellationToken);
     }
 
-    private async Task StopChannelsAsync(CancellationToken cancellationToken)
+    private async Task StopChannelsAsync(
+        IEnumerable<AudioChannelId>? channelIds,
+        CancellationToken cancellationToken)
     {
-        foreach (var worker in _channelWorkers)
+        var requested = channelIds?.ToHashSet();
+        var workers = _channelWorkers
+            .Where(item => requested is null || requested.Contains(item.Key))
+            .ToList();
+
+        foreach (var (channelId, worker) in workers)
         {
-            _logger.LogInformation("Stopping runtime channel worker {ChannelId}.", worker.ChannelId);
-            var channelId = worker.ChannelId;
+            _logger.LogInformation("Stopping runtime channel worker {ChannelId}.", channelId);
             await worker.StopAsync(cancellationToken);
-            if (worker is IAsyncDisposable disposable)
-            {
-                await disposable.DisposeAsync();
-            }
+            await DisposeWorkerAsync(worker);
+            _channelWorkers.Remove(channelId);
 
             ChannelStateChanged(this, new ChannelRuntimeState(
                 channelId,
@@ -183,7 +252,14 @@ public sealed class AppRuntimeService : BackgroundService, IAppRuntimeService
                 LastUpdatedAt: DateTimeOffset.UtcNow));
         }
 
-        _logger.LogInformation("Stopped {WorkerCount} runtime channel workers.", _channelWorkers.Count);
-        _channelWorkers.Clear();
+        _logger.LogInformation("Stopped {WorkerCount} runtime channel workers.", workers.Count);
+    }
+
+    private static async ValueTask DisposeWorkerAsync(IAudioChannelWorker worker)
+    {
+        if (worker is IAsyncDisposable disposable)
+        {
+            await disposable.DisposeAsync();
+        }
     }
 }

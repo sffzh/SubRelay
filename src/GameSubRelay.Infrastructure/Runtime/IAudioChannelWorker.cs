@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace GameSubRelay.Infrastructure.Runtime;
 
-public interface ITranslationChannelWorker
+public interface IAudioChannelWorker
 {
     AudioChannelId ChannelId { get; }
 
@@ -15,4 +15,3 @@ public interface ITranslationChannelWorker
 
     Task StopAsync(CancellationToken cancellationToken = default);
 }
-

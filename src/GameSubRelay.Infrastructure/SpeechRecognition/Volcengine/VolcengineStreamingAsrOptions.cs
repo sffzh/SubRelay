@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace GameSubRelay.Infrastructure.Translation.Volcengine;
+namespace GameSubRelay.Infrastructure.SpeechRecognition.Volcengine;
 
 public sealed record VolcengineStreamingAsrOptions
 {

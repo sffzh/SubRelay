@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Captions;
 using GameSubRelay.Core.Translation;
 
@@ -80,19 +81,48 @@ public sealed class CaptionLineViewModel : ViewModelBase
     public string SourceText
     {
         get => _sourceText;
-        set => SetProperty(ref _sourceText, value);
+        set
+        {
+            if (SetProperty(ref _sourceText, value))
+            {
+                OnPropertyChanged(nameof(PrimaryText));
+            }
+        }
     }
 
     public string TranslatedText
     {
         get => _translatedText;
-        set => SetProperty(ref _translatedText, value);
+        set
+        {
+            if (SetProperty(ref _translatedText, value))
+            {
+                OnPropertyChanged(nameof(PrimaryText));
+            }
+        }
     }
+
+    public string PrimaryText => string.IsNullOrWhiteSpace(SourceText) ? TranslatedText : SourceText;
 
     public bool IsFinal
     {
         get => _isFinal;
         set => SetProperty(ref _isFinal, value);
+    }
+
+    public void Clear()
+    {
+        SourceText = string.Empty;
+        TranslatedText = string.Empty;
+        IsFinal = false;
+    }
+
+    public void Apply(CaptionLine line, string? channelLabel = null)
+    {
+        ChannelLabel = string.IsNullOrWhiteSpace(channelLabel) ? line.ChannelLabel : channelLabel;
+        SourceText = line.SourceText;
+        TranslatedText = line.TranslatedText;
+        IsFinal = line.Stability == SegmentStability.Final;
     }
 }
 
@@ -107,6 +137,8 @@ public sealed class OverlayViewModel : ViewModelBase
         _settings = settings ?? new OverlayRenderSettings();
         _isVisible = _settings.Visible;
         Captions = new ObservableCollection<CaptionLineViewModel>();
+        MicrophoneCaption = new CaptionLineViewModel { ChannelLabel = "麦克风" };
+        MonitorCaption = new CaptionLineViewModel { ChannelLabel = "游戏声音" };
 
         ToggleVisibilityCommand = new RelayCommand(_ => ToggleOverlayVisibility());
         ToggleEditModeCommand = new RelayCommand(_ => ToggleEditMode());
@@ -146,6 +178,10 @@ public sealed class OverlayViewModel : ViewModelBase
 
     public ObservableCollection<CaptionLineViewModel> Captions { get; }
 
+    public CaptionLineViewModel MicrophoneCaption { get; }
+
+    public CaptionLineViewModel MonitorCaption { get; }
+
     public RelayCommand ToggleVisibilityCommand { get; set; }
     public RelayCommand ToggleEditModeCommand { get; set; }
     public RelayCommand ClearCaptionsCommand { get; set; }
@@ -165,6 +201,8 @@ public sealed class OverlayViewModel : ViewModelBase
     public void ClearCaptions()
     {
         Captions.Clear();
+        MicrophoneCaption.Clear();
+        MonitorCaption.Clear();
     }
 
     public void ApplyCaptionSnapshot(IReadOnlyList<CaptionLine> lines)
@@ -182,6 +220,31 @@ public sealed class OverlayViewModel : ViewModelBase
         }
 
         EnsureMaxLines();
+        ApplyLatestChannelCaption(lines, AudioChannelId.Microphone, MicrophoneCaption, "麦克风");
+        ApplyLatestChannelCaption(lines, AudioChannelId.Monitor, MonitorCaption, "游戏声音");
+    }
+
+    private static void ApplyLatestChannelCaption(
+        IEnumerable<CaptionLine> lines,
+        AudioChannelId channelId,
+        CaptionLineViewModel target,
+        string channelLabel)
+    {
+        var latest = lines
+            .Where(line => line.ChannelId == channelId)
+            .OrderByDescending(line => line.UpdatedAt)
+            .FirstOrDefault(line =>
+                !string.IsNullOrWhiteSpace(line.SourceText) ||
+                !string.IsNullOrWhiteSpace(line.TranslatedText));
+
+        if (latest is null)
+        {
+            target.Clear();
+            target.ChannelLabel = channelLabel;
+            return;
+        }
+
+        target.Apply(latest, channelLabel);
     }
 
     public void EnsureMaxLines()

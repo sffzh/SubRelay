@@ -1,11 +1,13 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.IO.Compression;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using GameSubRelay.Infrastructure.Volcengine;
 using Microsoft.Extensions.Logging;
 
-namespace GameSubRelay.Infrastructure.Translation.Volcengine;
+namespace GameSubRelay.Infrastructure.SpeechRecognition.Volcengine;
 
 public sealed record VolcengineStreamingAsrStartRequest(string? Language = null);
 
@@ -166,6 +168,7 @@ public sealed class VolcengineStreamingAsrProtocolCodec
     private const byte Reserved = 0x00;
     private const int MessageTypeFullServerResponse = 0x09;
     private const int MessageTypeError = 0x0f;
+    private const int CompressionGzip = 0x01;
 
     public ReadOnlyMemory<byte> EncodeFullClientRequest(VolcengineStreamingAsrStartRequest request)
     {
@@ -219,7 +222,7 @@ public sealed class VolcengineStreamingAsrProtocolCodec
     public VolcengineStreamingAsrServerMessage DecodeServerResponse(ReadOnlyMemory<byte> payload)
     {
         var span = payload.Span;
-        if (span.Length < 8)
+        if (span.Length < 4)
         {
             throw new InvalidOperationException("Volcengine streaming ASR response is too short.");
         }
@@ -228,12 +231,23 @@ public sealed class VolcengineStreamingAsrProtocolCodec
         var messageType = span[1] >> 4;
         var flags = span[1] & 0x0f;
         var compression = span[2] & 0x0f;
+        if (headerSize < 4 || headerSize > span.Length)
+        {
+            throw new InvalidOperationException(
+                $"Volcengine streaming ASR response has invalid header size. {DescribeServerResponseFrame(payload)}");
+        }
+
         var offset = headerSize;
 
         if (messageType == MessageTypeError)
         {
             var errorCode = ReadInt32(span, ref offset);
-            var errorPayload = ReadPayload(span, ref offset);
+            var errorPayload = ReadPayload(span, ref offset, payload.Length);
+            if (compression == CompressionGzip)
+            {
+                errorPayload = Decompress(errorPayload);
+            }
+
             var errorText = Encoding.UTF8.GetString(errorPayload);
             return new VolcengineStreamingAsrServerMessage(
                 Sequence: 0,
@@ -249,14 +263,32 @@ public sealed class VolcengineStreamingAsrProtocolCodec
             throw new InvalidOperationException($"Unsupported Volcengine streaming ASR message type {messageType}.");
         }
 
-        var sequence = ReadInt32(span, ref offset);
-        var responsePayload = ReadPayload(span, ref offset);
-        if (compression == 1)
+        var sequence = HasSequence(flags) ? ReadInt32(span, ref offset) : 0;
+        var responsePayload = ReadPayload(span, ref offset, payload.Length);
+        if (compression == CompressionGzip)
         {
             responsePayload = Decompress(responsePayload);
         }
 
-        return ParseResponseJson(sequence, flags == 0x03, responsePayload);
+        return ParseResponseJson(sequence, IsFinalResponse(flags, sequence), responsePayload);
+    }
+
+    public static string DescribeServerResponseFrame(ReadOnlyMemory<byte> payload)
+    {
+        var span = payload.Span;
+        if (span.Length < 4)
+        {
+            return $"bytes={span.Length}, prefix={FormatHexPrefix(span)}";
+        }
+
+        var headerSize = (span[0] & 0x0f) * 4;
+        var messageType = span[1] >> 4;
+        var flags = span[1] & 0x0f;
+        var serialization = span[2] >> 4;
+        var compression = span[2] & 0x0f;
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"bytes={span.Length}, headerSize={headerSize}, messageType=0x{messageType:X}, flags=0x{flags:X}, serialization=0x{serialization:X}, compression=0x{compression:X}, prefix={FormatHexPrefix(span)}");
     }
 
     private static VolcengineStreamingAsrServerMessage ParseResponseJson(
@@ -327,12 +359,13 @@ public sealed class VolcengineStreamingAsrProtocolCodec
         return frame;
     }
 
-    private static byte[] ReadPayload(ReadOnlySpan<byte> span, ref int offset)
+    private static byte[] ReadPayload(ReadOnlySpan<byte> span, ref int offset, int frameLength)
     {
         var payloadSize = ReadInt32(span, ref offset);
         if (payloadSize < 0 || offset + payloadSize > span.Length)
         {
-            throw new InvalidOperationException("Volcengine streaming ASR response has invalid payload size.");
+            throw new InvalidOperationException(
+                $"Volcengine streaming ASR response has invalid payload size. frameBytes={frameLength}, offset={offset}, payloadSize={payloadSize}");
         }
 
         var payload = span.Slice(offset, payloadSize).ToArray();
@@ -395,5 +428,37 @@ public sealed class VolcengineStreamingAsrProtocolCodec
         return element.ValueKind == JsonValueKind.Object &&
             element.TryGetProperty(propertyName, out var property) &&
             property.ValueKind == JsonValueKind.True;
+    }
+
+    private static bool HasSequence(int flags)
+    {
+        return flags is 0x01 or 0x03;
+    }
+
+    private static bool IsFinalResponse(int flags, int sequence)
+    {
+        return (flags is 0x02 or 0x03) || sequence < 0;
+    }
+
+    private static string FormatHexPrefix(ReadOnlySpan<byte> span)
+    {
+        var length = Math.Min(span.Length, 16);
+        if (length == 0)
+        {
+            return "<empty>";
+        }
+
+        var builder = new StringBuilder(length * 3);
+        for (var index = 0; index < length; index++)
+        {
+            if (index > 0)
+            {
+                builder.Append(' ');
+            }
+
+            builder.Append(span[index].ToString("X2", CultureInfo.InvariantCulture));
+        }
+
+        return builder.ToString();
     }
 }

@@ -30,4 +30,4 @@ The playback-device recognition channel uses optimized bidirectional streaming:
 - Request payload: JSON + Gzip full client request, followed by Gzip PCM audio-only frames
 - Audio: 16 kHz, 16-bit, mono PCM, batched around 200 ms
 
-ASR results are mapped into source-only `TranslationSegment` values so the overlay can show recognized playback text without pretending it is translated text.
+ASR results are mapped into `SpeechRecognitionSegment` values. The recognition worker applies them as source-only caption updates so the overlay can show recognized playback text without pretending it is translated text.

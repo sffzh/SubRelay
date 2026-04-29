@@ -3,8 +3,8 @@ using System.Text;
 using FluentAssertions;
 using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Captions;
-using GameSubRelay.Core.Translation;
-using GameSubRelay.Infrastructure.Translation.Volcengine;
+using GameSubRelay.Core.SpeechRecognition;
+using GameSubRelay.Infrastructure.SpeechRecognition.Volcengine;
 using Xunit;
 
 namespace GameSubRelay.Infrastructure.Tests;
@@ -63,6 +63,63 @@ public sealed class VolcengineStreamingAsrTests
     }
 
     [Fact]
+    public void Streaming_asr_protocol_codec_decodes_server_response_without_sequence()
+    {
+        var codec = new VolcengineStreamingAsrProtocolCodec();
+
+        var decoded = codec.DecodeServerResponse(CreateServerResponsePayload(
+            """
+            {
+              "result": {
+                "text": "hello without sequence"
+              }
+            }
+            """,
+            sequence: 0,
+            final: false,
+            includeSequence: false));
+
+        decoded.Sequence.Should().Be(0);
+        decoded.IsFinal.Should().BeFalse();
+        decoded.Text.Should().Be("hello without sequence");
+    }
+
+    [Fact]
+    public void Streaming_asr_protocol_codec_marks_no_sequence_final_response()
+    {
+        var codec = new VolcengineStreamingAsrProtocolCodec();
+
+        var decoded = codec.DecodeServerResponse(CreateServerResponsePayload(
+            """
+            {
+              "result": {
+                "text": ""
+              }
+            }
+            """,
+            sequence: 0,
+            final: true,
+            includeSequence: false));
+
+        decoded.Sequence.Should().Be(0);
+        decoded.IsFinal.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Streaming_asr_protocol_codec_decodes_error_response()
+    {
+        var codec = new VolcengineStreamingAsrProtocolCodec();
+
+        var decoded = codec.DecodeServerResponse(CreateErrorResponsePayload(
+            4001001,
+            """{"message":"bad request"}"""));
+
+        decoded.IsFinal.Should().BeTrue();
+        decoded.ErrorCode.Should().Be(4001001);
+        decoded.ErrorMessage.Should().Be("""{"message":"bad request"}""");
+    }
+
+    [Fact]
     public async Task Streaming_asr_provider_emits_source_only_segments_from_bigmodel_async()
     {
         var transport = new RecordingStreamingAsrWebSocketTransport(
@@ -87,10 +144,10 @@ public sealed class VolcengineStreamingAsrTests
 
         await using var session = await provider.StartSessionAsync(
             AudioChannelId.Monitor,
-            new SpeechTranslationSessionOptions("en", "zh", "cn-north-1"),
+            new SpeechRecognitionSessionOptions("en", "cn-north-1"),
             CancellationToken.None);
 
-        var segments = new List<TranslationSegment>();
+        var segments = new List<SpeechRecognitionSegment>();
         await foreach (var segment in session.ReadSegmentsAsync(CancellationToken.None))
         {
             segments.Add(segment);
@@ -100,22 +157,48 @@ public sealed class VolcengineStreamingAsrTests
         transport.SentPayloads.Should().ContainSingle();
         segments.Should().ContainSingle();
         segments[0].ChannelId.Should().Be(AudioChannelId.Monitor);
-        segments[0].SourceText.Should().Be("enemy on the left");
-        segments[0].TranslatedText.Should().BeEmpty();
+        segments[0].Text.Should().Be("enemy on the left");
         segments[0].Stability.Should().Be(SegmentStability.Final);
     }
 
-    private static byte[] CreateServerResponsePayload(string json, int sequence, bool final)
+    private static byte[] CreateServerResponsePayload(
+        string json,
+        int sequence,
+        bool final,
+        bool includeSequence = true)
     {
         var payload = Compress(Encoding.UTF8.GetBytes(json));
+        var flags = includeSequence
+            ? final ? 0x03 : 0x01
+            : final ? 0x02 : 0x00;
         var bytes = new List<byte>
         {
             0x11,
-            final ? (byte)0x93 : (byte)0x91,
+            (byte)(0x90 | flags),
             0x11,
             0x00
         };
-        bytes.AddRange(BitConverter.GetBytes(sequence).Reverse());
+        if (includeSequence)
+        {
+            bytes.AddRange(BitConverter.GetBytes(sequence).Reverse());
+        }
+
+        bytes.AddRange(BitConverter.GetBytes(payload.Length).Reverse());
+        bytes.AddRange(payload);
+        return bytes.ToArray();
+    }
+
+    private static byte[] CreateErrorResponsePayload(int code, string message)
+    {
+        var payload = Encoding.UTF8.GetBytes(message);
+        var bytes = new List<byte>
+        {
+            0x11,
+            0xf0,
+            0x10,
+            0x00
+        };
+        bytes.AddRange(BitConverter.GetBytes(code).Reverse());
         bytes.AddRange(BitConverter.GetBytes(payload.Length).Reverse());
         bytes.AddRange(payload);
         return bytes.ToArray();

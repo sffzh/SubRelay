@@ -3,6 +3,7 @@ using System.Linq;
 using Xunit;
 using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Captions;
+using GameSubRelay.Core.SpeechRecognition;
 using GameSubRelay.Core.Translation;
 
 namespace GameSubRelay.Core.Tests;
@@ -76,6 +77,27 @@ public class CaptionStoreTests
         Assert.Equal(2, lines.Count);
         Assert.Equal("two", lines[0].SourceText);
         Assert.Equal("三", lines[1].TranslatedText);
+    }
+
+    [Fact]
+    public void Recognition_segments_update_source_text_without_translation_text()
+    {
+        var store = new CaptionStore(new CaptionStoreOptions(6));
+
+        store.ApplyRecognitionSegment(new SpeechRecognitionSegment(
+            AudioChannelId.Monitor,
+            21,
+            "en",
+            "enemy on the left",
+            SegmentStability.Final,
+            TimeSpan.Zero,
+            TimeSpan.FromMilliseconds(800)));
+
+        var line = Assert.Single(store.GetSnapshot());
+        Assert.Equal(AudioChannelId.Monitor, line.ChannelId);
+        Assert.Equal("enemy on the left", line.SourceText);
+        Assert.Empty(line.TranslatedText);
+        Assert.Equal(SegmentStability.Final, line.Stability);
     }
 
     [Fact]

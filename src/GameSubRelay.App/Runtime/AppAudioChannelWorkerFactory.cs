@@ -1,22 +1,24 @@
 using GameSubRelay.App.ViewModels;
 using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Captions;
+using GameSubRelay.Core.SpeechRecognition;
 using GameSubRelay.Core.Translation;
 using GameSubRelay.Infrastructure.Audio;
 using GameSubRelay.Infrastructure.Runtime;
+using GameSubRelay.Infrastructure.SpeechRecognition.Volcengine;
 using GameSubRelay.Infrastructure.Translation.Volcengine;
 using Microsoft.Extensions.Logging;
 
 namespace GameSubRelay.App.Runtime;
 
-public sealed class AppTranslationChannelWorkerFactory : ITranslationChannelWorkerFactory
+public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
 {
     private readonly SettingsViewModel _settings;
     private readonly INaudioDeviceService _deviceService;
     private readonly CaptionStore _captionStore;
     private readonly ILoggerFactory _loggerFactory;
 
-    public AppTranslationChannelWorkerFactory(
+    public AppAudioChannelWorkerFactory(
         SettingsViewModel settings,
         INaudioDeviceService deviceService,
         CaptionStore captionStore,
@@ -28,10 +30,11 @@ public sealed class AppTranslationChannelWorkerFactory : ITranslationChannelWork
         _loggerFactory = loggerFactory;
     }
 
-    public IReadOnlyList<ITranslationChannelWorker> CreateWorkers()
+    public IReadOnlyList<IAudioChannelWorker> CreateWorkers()
     {
-        var workers = new List<ITranslationChannelWorker>();
+        var workers = new List<IAudioChannelWorker>();
         var logger = _loggerFactory.CreateLogger<TranslationChannelWorker>();
+        var recognitionLogger = _loggerFactory.CreateLogger<SpeechRecognitionChannelWorker>();
         var astLogger = _loggerFactory.CreateLogger<VolcengineAstSpeechTranslationProvider>();
         var asrLogger = _loggerFactory.CreateLogger<VolcengineStreamingAsrProvider>();
 
@@ -66,24 +69,22 @@ public sealed class AppTranslationChannelWorkerFactory : ITranslationChannelWork
         if (_settings.Audio.MonitorEnabled)
         {
             var asrProvider = new VolcengineStreamingAsrProvider(new VolcengineStreamingAsrOptions(
-                _settings.Translation.AccessKeyId,
-                _settings.Translation.SecretAccessKey),
+                _settings.SpeechRecognition.AccessKeyId,
+                _settings.SpeechRecognition.SecretAccessKey),
                 new VolcengineStreamingAsrProtocolCodec(),
                 () => new ClientWebSocketStreamingAsrTransport(
                     logger: _loggerFactory.CreateLogger<ClientWebSocketStreamingAsrTransport>()),
                 asrLogger);
-            var asrSessionOptions = new SpeechTranslationSessionOptions(
-                _settings.Translation.SourceLanguage,
-                _settings.Translation.TargetLanguage,
-                _settings.Translation.Region,
-                Mode: "asr");
+            var asrSessionOptions = new SpeechRecognitionSessionOptions(
+                _settings.SpeechRecognition.Language,
+                _settings.SpeechRecognition.Region);
 
-            workers.Add(CreateWorker(
+            workers.Add(CreateRecognitionWorker(
                 AudioChannelId.Monitor,
                 new LoopbackCaptureService(_deviceService, NormalizeDeviceId(_settings.Audio.SelectedMonitorDevice)),
                 asrProvider,
                 asrSessionOptions,
-                logger));
+                recognitionLogger));
         }
 
         return workers;
@@ -97,6 +98,25 @@ public sealed class AppTranslationChannelWorkerFactory : ITranslationChannelWork
         ILogger<TranslationChannelWorker> logger)
     {
         return new TranslationChannelWorker(
+            channelId,
+            new CaptureAudioFrameSource(
+                channelId,
+                captureService,
+                _loggerFactory.CreateLogger<CaptureAudioFrameSource>()),
+            provider,
+            sessionOptions,
+            _captionStore,
+            logger);
+    }
+
+    private SpeechRecognitionChannelWorker CreateRecognitionWorker(
+        AudioChannelId channelId,
+        IAudioCaptureService captureService,
+        ISpeechRecognitionProvider provider,
+        SpeechRecognitionSessionOptions sessionOptions,
+        ILogger<SpeechRecognitionChannelWorker> logger)
+    {
+        return new SpeechRecognitionChannelWorker(
             channelId,
             new CaptureAudioFrameSource(
                 channelId,

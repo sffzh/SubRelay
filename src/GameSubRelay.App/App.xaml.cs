@@ -45,6 +45,7 @@ public partial class App : Application
                 state.Status);
             Dispatcher.Invoke(() =>
             {
+                settingsViewModel.ApplyRuntimeChannelState(state);
                 settingsViewModel.SetStatus(state.ErrorMessage is null
                     ? $"{state.ChannelId}：{state.Status}"
                     : $"{state.ChannelId}：{state.Status} - {state.ErrorMessage}");
@@ -58,7 +59,7 @@ public partial class App : Application
                 if (!runtimeService.IsRunning)
                 {
                     logger.LogInformation("Settings saved while relay is stopped. Channels remain stopped.");
-                    settingsViewModel.SetStatus("配置已保存；同声传译未启动");
+                    settingsViewModel.SetStatus("配置已保存；语音通道未启动");
                     return;
                 }
 

@@ -7,7 +7,9 @@ public sealed record SecretSettings(
     string VolcengineAstAccessKey,
     string VolcengineTtsAppId,
     string VolcengineTtsToken,
-    string VolcengineTtsCluster)
+    string VolcengineTtsCluster,
+    string VolcengineAsrAppKey = "",
+    string VolcengineAsrAccessKey = "")
 {
     public static SecretSettings Empty => new(
         VolcengineAccessKeyId: string.Empty,
@@ -20,12 +22,16 @@ public sealed record SecretSettings(
 
     public SecretSettings Normalize() => this with
     {
-        VolcengineAccessKeyId = VolcengineAccessKeyId.Trim(),
-        VolcengineSecretAccessKey = VolcengineSecretAccessKey.Trim(),
-        VolcengineAppKey = VolcengineAppKey.Trim(),
-        VolcengineAstAccessKey = VolcengineAstAccessKey.Trim(),
-        VolcengineTtsAppId = VolcengineTtsAppId.Trim(),
-        VolcengineTtsToken = VolcengineTtsToken.Trim(),
-        VolcengineTtsCluster = VolcengineTtsCluster.Trim()
+        VolcengineAccessKeyId = Trim(VolcengineAccessKeyId),
+        VolcengineSecretAccessKey = Trim(VolcengineSecretAccessKey),
+        VolcengineAppKey = Trim(VolcengineAppKey),
+        VolcengineAstAccessKey = Trim(VolcengineAstAccessKey),
+        VolcengineTtsAppId = Trim(VolcengineTtsAppId),
+        VolcengineTtsToken = Trim(VolcengineTtsToken),
+        VolcengineTtsCluster = Trim(VolcengineTtsCluster),
+        VolcengineAsrAppKey = Trim(VolcengineAsrAppKey),
+        VolcengineAsrAccessKey = Trim(VolcengineAsrAccessKey)
     };
+
+    private static string Trim(string? value) => value?.Trim() ?? string.Empty;
 }

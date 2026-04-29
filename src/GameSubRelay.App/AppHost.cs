@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using GameSubRelay.App.Diagnostics;
 using GameSubRelay.App.Logging;
 using GameSubRelay.App.Overlay;
 using GameSubRelay.App.ViewModels;
@@ -38,14 +39,17 @@ public static class AppHost
                 services.AddSingleton<ISettingsStore, JsonSettingsStore>();
                 services.AddSingleton<ISecretStore, DpapiSecretStore>();
                 services.AddSingleton<INaudioDeviceService, NaudioDeviceService>();
+                services.AddSingleton<IRelayDiagnosticsService, RelayDiagnosticsService>();
                 services.AddSingleton(sp => new SettingsViewModel(
                     sp.GetRequiredService<OverlayViewModel>(),
                     sp.GetRequiredService<ISettingsStore>(),
                     sp.GetRequiredService<ISecretStore>(),
-                    sp.GetRequiredService<INaudioDeviceService>()));
+                    sp.GetRequiredService<INaudioDeviceService>(),
+                    runtimeService: null,
+                    diagnosticsService: sp.GetRequiredService<IRelayDiagnosticsService>()));
 
                 services.AddSingleton<IGlobalHotkeyService, GlobalHotkeyService>();
-                services.AddSingleton<ITranslationChannelWorkerFactory, AppTranslationChannelWorkerFactory>();
+                services.AddSingleton<IAudioChannelWorkerFactory, AppAudioChannelWorkerFactory>();
 
                 services.AddSingleton<AppRuntimeService>();
                 services.AddSingleton<IAppRuntimeService>(sp => sp.GetRequiredService<AppRuntimeService>());

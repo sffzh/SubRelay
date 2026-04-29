@@ -40,7 +40,9 @@ public sealed class SecretSettingsStoreTests
                 VolcengineAstAccessKey: "ast-access-key-test",
                 VolcengineTtsAppId: "appid-test",
                 VolcengineTtsToken: "token-test",
-                VolcengineTtsCluster: "cluster-test");
+                VolcengineTtsCluster: "cluster-test",
+                VolcengineAsrAppKey: "asr-app-key-test",
+                VolcengineAsrAccessKey: "asr-access-key-test");
 
             await store.SaveSecretsAsync(secrets);
             var loaded = await store.LoadSecretsAsync();
@@ -50,6 +52,7 @@ public sealed class SecretSettingsStoreTests
             Assert.Equal(secrets, loaded);
             Assert.DoesNotContain("ak-test", encryptedText);
             Assert.DoesNotContain("sk-test", encryptedText);
+            Assert.DoesNotContain("asr-app-key-test", encryptedText);
             Assert.DoesNotContain("token-test", encryptedText);
         }
         finally

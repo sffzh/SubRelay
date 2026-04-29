@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Translation;
 using GameSubRelay.Infrastructure.Audio;
+using GameSubRelay.Infrastructure.Volcengine;
 using Microsoft.Extensions.Logging;
 
 namespace GameSubRelay.Infrastructure.Translation.Volcengine;

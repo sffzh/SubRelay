@@ -1,6 +1,7 @@
 using System.Text;
+using GameSubRelay.Infrastructure.Translation.Volcengine;
 
-namespace GameSubRelay.Infrastructure.Translation.Volcengine;
+namespace GameSubRelay.Infrastructure.Volcengine;
 
 internal static class VolcengineLogFormatter
 {
