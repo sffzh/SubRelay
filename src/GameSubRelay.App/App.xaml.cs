@@ -32,7 +32,7 @@ public partial class App : Application
         var captionStore = _host.Services.GetRequiredService<CaptionStore>();
         settingsViewModel.AttachRuntimeService(runtimeService);
 
-        logger.LogInformation("GameSubRelay starting. Log file: {LogFile}", AppLogPaths.DefaultLogFilePath);
+        logger.LogInformation("SubRelay starting. Log file: {LogFile}", AppLogPaths.DefaultLogFilePath);
 
         captionStore.CaptionLinesChanged += (_, args) =>
         {

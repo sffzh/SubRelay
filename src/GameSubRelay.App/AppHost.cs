@@ -61,8 +61,10 @@ public static class AppHost
     private static LogLevel ResolveMinimumLogLevel(IConfiguration configuration)
     {
         var configuredLevel =
+            configuration["SubRelay:LogLevel"] ??
             configuration["GameSubRelay:LogLevel"] ??
             configuration["Logging:LogLevel:Default"] ??
+            Environment.GetEnvironmentVariable("SUBRELAY_LOG_LEVEL") ??
             Environment.GetEnvironmentVariable("GAMESUBRELAY_LOG_LEVEL");
 
         return Enum.TryParse<LogLevel>(configuredLevel, ignoreCase: true, out var level)

@@ -6,6 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <Platforms>AnyCPU</Platforms>
+    <AssemblyName>SubRelay</AssemblyName>
+    <Product>SubRelay</Product>
+    <Description>Windows live speech translation overlay for microphone and system audio.</Description>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 

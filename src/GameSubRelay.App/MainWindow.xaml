@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:settings="clr-namespace:GameSubRelay.App.Settings"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    Title="GameSubRelay"
+    Title="SubRelay"
     Width="1160"
     Height="760"
     MinWidth="1040"
@@ -26,7 +26,7 @@
             Grid.Row="0"
             Height="48"
             Margin="8 0"
-            Title="GameSubRelay">
+            Title="SubRelay">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon
                     Width="18"

@@ -1,6 +1,6 @@
 # 火山引擎流式 ASR
 
-GameSubRelay 保留火山引擎大模型流式语音识别作为诊断和扩展能力，但它不再作为“系统声音字幕”的主链路。
+SubRelay 保留火山引擎大模型流式语音识别作为诊断和扩展能力，但它不再作为“系统声音字幕”的主链路。
 
 主链路设计见：`docs/design/ast-dual-channel-design.md`
 

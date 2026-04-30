@@ -83,6 +83,6 @@ public sealed class JsonSettingsStore : ISettingsStore
     private static string GetDefaultSettingsFilePath()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        return Path.Combine(appData, "GameSubRelay", DefaultFileName);
+        return Path.Combine(appData, "SubRelay", DefaultFileName);
     }
 }

@@ -6,10 +6,10 @@ public static class AppLogPaths
 {
     public static string DefaultLogDirectory { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "GameSubRelay",
+        "SubRelay",
         "logs");
 
     public static string DefaultLogFilePath { get; } = Path.Combine(
         DefaultLogDirectory,
-        $"GameSubRelay-{DateTime.Now:yyyyMMdd}.log");
+        $"SubRelay-{DateTime.Now:yyyyMMdd}.log");
 }

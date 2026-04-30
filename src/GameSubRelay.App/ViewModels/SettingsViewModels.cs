@@ -658,7 +658,7 @@ public sealed class HotkeySettingsViewModel : ViewModelBase
 
 public sealed class SettingsViewModel : ViewModelBase
 {
-    private string _title = "GameSubRelay 设置";
+    private string _title = "SubRelay 设置";
     private readonly OverlayViewModel _overlayViewModel;
     private readonly ISettingsStore _settingsStore;
     private readonly ISecretStore _secretStore;

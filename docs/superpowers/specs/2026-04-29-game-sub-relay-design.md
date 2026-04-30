@@ -1,4 +1,4 @@
-# GameSubRelay MVP 设计文档
+# SubRelay MVP 设计文档
 
 日期：2026-04-29  
 状态：设计草案，可进入实施计划  
@@ -6,9 +6,9 @@
 
 ## 1. 背景与目标
 
-> 2026-04-30 定位修订：GameSubRelay 调整为通用 Windows 桌面同声传译软件。游戏仍是适用场景之一，但产品叙述、设置命名和默认工作流应面向会议、直播、语音聊天、视频播放、游戏等系统/应用音频场景。
+> 2026-04-30 定位修订：SubRelay 调整为通用 Windows 桌面同声传译软件。游戏仍是适用场景之一，但产品叙述、设置命名和默认工作流应面向会议、直播、语音聊天、视频播放、游戏等系统/应用音频场景。
 
-GameSubRelay 是一个 Windows 桌面工具，用于实时采集麦克风和系统/应用声音、调用语音翻译服务完成实时识别与翻译，并用不影响当前操作的字幕浮层显示结果。当前实现使用火山引擎同声传译，架构上通过 Provider 接口为后续接入其他厂商服务保留扩展点。
+SubRelay 是一个 Windows 桌面工具，用于实时采集麦克风和系统/应用声音、调用语音翻译服务完成实时识别与翻译，并用不影响当前操作的字幕浮层显示结果。当前实现使用火山引擎同声传译，架构上通过 Provider 接口为后续接入其他厂商服务保留扩展点。
 
 核心目标：
 
@@ -277,8 +277,8 @@ MVP TTS 策略：
 
 配置文件：
 
-- 非敏感配置：`%APPDATA%\GameSubRelay\settings.json`
-- 敏感配置：`%APPDATA%\GameSubRelay\secrets.json.dpapi`
+- 非敏感配置：`%APPDATA%\SubRelay\settings.json`
+- 敏感配置：`%APPDATA%\SubRelay\secrets.json.dpapi`
 
 敏感字段使用 DPAPI `CurrentUser` 范围加密，不能明文写入日志。
 

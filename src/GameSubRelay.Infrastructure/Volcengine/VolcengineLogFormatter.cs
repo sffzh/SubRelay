@@ -103,7 +103,8 @@ internal static class VolcengineLogFormatter
 
     private static bool ShouldLogSubtitleText()
     {
-        var value = Environment.GetEnvironmentVariable("GAMESUBRELAY_LOG_SUBTITLE_TEXT");
+        var value = Environment.GetEnvironmentVariable("SUBRELAY_LOG_SUBTITLE_TEXT")
+            ?? Environment.GetEnvironmentVariable("GAMESUBRELAY_LOG_SUBTITLE_TEXT");
         return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);

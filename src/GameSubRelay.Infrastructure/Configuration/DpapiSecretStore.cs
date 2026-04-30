@@ -88,7 +88,7 @@ public sealed class DpapiSecretStore : ISecretStore
     private static string GetDefaultSecretFilePath()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        return Path.Combine(appData, "GameSubRelay", DefaultFileName);
+        return Path.Combine(appData, "SubRelay", DefaultFileName);
     }
 
     private sealed record SecretEnvelope(VolcengineSecrets Volcengine)
@@ -165,7 +165,7 @@ public sealed class DpapiSecretStore : ISecretStore
                 {
                     ok = CryptProtectData(
                         ref inputBlob,
-                        "GameSubRelay secrets",
+                        "SubRelay secrets",
                         IntPtr.Zero,
                         IntPtr.Zero,
                         IntPtr.Zero,

@@ -1,24 +1,29 @@
-# GameSubRelay
+# SubRelay
 
-GameSubRelay 是一个通用 Windows 桌面同声传译工具，用于采集麦克风和系统/应用声音，并在屏幕上方显示可穿透的字幕浮层。
+SubRelay is a Windows desktop live speech translation overlay for microphone and system/application audio.
 
-## 功能目标
+SubRelay 是一个 Windows 桌面端实时语音翻译字幕工具，用于采集麦克风和系统/应用声音，并在屏幕上方显示透明、置顶、鼠标可穿透的字幕浮层。
 
-- 采集麦克风音频，通过当前接入的语音翻译服务生成翻译字幕和翻译后的语音输出。
-- 采集指定播放设备的系统/应用声音，生成原文和译文字幕。
-- 在透明、置顶、鼠标可穿透的浮层中按声道显示字幕，避免影响当前操作。
-- 启用语音输出后，将翻译后的语音输出到指定播放设备或虚拟麦克风。
-- 支持源语言、目标语言配置；当前火山 AST 实现提供中文、英语、日语、印尼语、西班牙语、葡萄牙语、德语、法语和中英互译选项。
-- 当前实现使用火山引擎同声传译 2.0 AST，核心接口按 Provider 抽象保留，后续可接入其他厂商的实时语音翻译服务。
-- 软件启动后不会自动监听，每个通道都需要手动开始和停止。
+[中文](#中文) | [English](#english)
 
-## 设计文档
+## 中文
 
-- AST 双通道设计：`docs/design/ast-dual-channel-design.md`
-- 火山 AST 接入说明：`docs/api/volcengine-ast-translate.md`
-- 火山 ASR 诊断说明：`docs/api/volcengine-streaming-asr.md`
+### 功能
 
-## 服务商与凭据
+- 麦克风通道：把自己的语音实时识别、翻译，并可输出翻译后的语音。
+- 系统声音通道：采集指定播放设备的系统/应用声音，显示原文字幕和译文字幕。
+- 字幕浮层：透明、置顶、鼠标可穿透，适合会议、直播、语音聊天、视频播放和游戏等场景。
+- 语言配置：支持源语言、目标语言配置；当前火山 AST 实现提供中文、英语、日语、印尼语、西班牙语、葡萄牙语、德语、法语和中英互译选项。
+- Provider 架构：当前主链路使用火山引擎同声传译 2.0 AST，核心接口保留后续接入其他实时语音翻译服务的空间。
+- 手动控制：软件启动后不会自动监听，每个通道都需要手动开始和停止。
+
+### 运行平台
+
+当前优先支持 Windows 10/11。系统声音通道使用 Windows WASAPI loopback，语义是捕获所选播放设备上的混音输出，而不是只捕获某个单独应用或进程。
+
+发布包是 framework-dependent 构建，需要目标机器安装 .NET 8 Desktop Runtime。
+
+### 服务商与凭据
 
 使用火山引擎同声传译 2.0 AST 服务时，需要在控制台获取 `APP ID` 和 `Access Token`：
 
@@ -31,6 +36,76 @@ https://console.volcengine.com/speech/service/10030
 
 注意：这里不要填写账号级 IAM AK/SK，这些语音接口使用的是语音服务页面里的 `APP ID` 和 `Access Token`。
 
-## 运行平台
+### 本地构建
 
-当前优先支持 Windows 10/11，面向会议、直播、游戏、语音聊天、视频播放等需要实时字幕和翻译的桌面场景。播放设备通道使用 Windows WASAPI loopback，语义是捕获该播放设备上的混音输出。
+```powershell
+dotnet restore GameSubRelay.sln
+dotnet build GameSubRelay.sln -c Release
+dotnet test GameSubRelay.sln -c Release --no-build
+dotnet publish .\src\GameSubRelay.App\GameSubRelay.App.csproj -c Release -r win-x64 --self-contained false -o .\dist\win-x64
+```
+
+也可以使用仓库里的构建脚本：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1
+```
+
+### 文档
+
+- AST 双通道设计：`docs/design/ast-dual-channel-design.md`
+- 火山 AST 接入说明：`docs/api/volcengine-ast-translate.md`
+- 火山 ASR 诊断说明：`docs/api/volcengine-streaming-asr.md`
+- MVP 手动检查清单：`docs/qa/mvp-manual-checklist.md`
+
+## English
+
+### Features
+
+- Microphone channel: recognize and translate your own speech in real time, with optional translated voice output.
+- System audio channel: capture a selected playback device and show both source and translated captions.
+- Overlay captions: transparent, always-on-top, and click-through for meetings, livestreams, voice chat, video playback, and games.
+- Language settings: configurable source and target languages. The current Volcengine AST implementation includes Chinese, English, Japanese, Indonesian, Spanish, Portuguese, German, French, and Chinese-English translation options.
+- Provider-based design: the current live path uses Volcengine Automatic Speech Translation 2.0, while the core interfaces leave room for other real-time speech translation providers.
+- Manual control: SubRelay does not start listening automatically. Each channel must be started and stopped explicitly.
+
+### Platform
+
+SubRelay currently targets Windows 10/11. The system audio channel uses Windows WASAPI loopback, which captures the mixed output of the selected playback device rather than a single application or process.
+
+The release package is framework-dependent and requires the .NET 8 Desktop Runtime on the target machine.
+
+### Provider Credentials
+
+For Volcengine Automatic Speech Translation 2.0, get the `APP ID` and `Access Token` from:
+
+https://console.volcengine.com/speech/service/10030
+
+Enter them in the Volcengine AST credentials section on the speech services settings page:
+
+- `APP ID` -> `X-Api-App-Key`
+- `Access Token` -> `X-Api-Access-Key`
+
+Do not use account-level IAM AK/SK credentials here. These speech APIs use the `APP ID` and `Access Token` from the speech service page.
+
+### Build Locally
+
+```powershell
+dotnet restore GameSubRelay.sln
+dotnet build GameSubRelay.sln -c Release
+dotnet test GameSubRelay.sln -c Release --no-build
+dotnet publish .\src\GameSubRelay.App\GameSubRelay.App.csproj -c Release -r win-x64 --self-contained false -o .\dist\win-x64
+```
+
+Or run the repository build script:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1
+```
+
+### Documentation
+
+- AST dual-channel design: `docs/design/ast-dual-channel-design.md`
+- Volcengine AST notes: `docs/api/volcengine-ast-translate.md`
+- Volcengine ASR diagnostic notes: `docs/api/volcengine-streaming-asr.md`
+- MVP manual QA checklist: `docs/qa/mvp-manual-checklist.md`
