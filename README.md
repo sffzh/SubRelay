@@ -4,6 +4,8 @@ SubRelay 是一个 Windows 桌面端实时语音翻译字幕工具，用于采�
 
 中文 | [English](README.en-US.md)
 
+![SubRelay 主界面截图](docs/assets/subrelay-workbench.png)
+
 ## 功能
 
 - 麦克风通道：把自己的语音实时识别、翻译，并可输出翻译后的语音。

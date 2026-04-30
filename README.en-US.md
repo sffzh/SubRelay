@@ -4,6 +4,8 @@ SubRelay is a Windows desktop live speech translation overlay for microphone and
 
 [中文](README.md) | English
 
+![SubRelay workbench screenshot](docs/assets/subrelay-workbench.png)
+
 ## Features
 
 - Microphone channel: recognize and translate your own speech in real time, with optional translated voice output.
