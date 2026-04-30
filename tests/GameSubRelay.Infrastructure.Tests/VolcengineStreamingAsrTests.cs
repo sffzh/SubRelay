@@ -180,10 +180,10 @@ public sealed class VolcengineStreamingAsrTests
         };
         if (includeSequence)
         {
-            bytes.AddRange(BitConverter.GetBytes(sequence).Reverse());
+            bytes.AddRange(ToBigEndianBytes(sequence));
         }
 
-        bytes.AddRange(BitConverter.GetBytes(payload.Length).Reverse());
+        bytes.AddRange(ToBigEndianBytes(payload.Length));
         bytes.AddRange(payload);
         return bytes.ToArray();
     }
@@ -198,10 +198,21 @@ public sealed class VolcengineStreamingAsrTests
             0x10,
             0x00
         };
-        bytes.AddRange(BitConverter.GetBytes(code).Reverse());
-        bytes.AddRange(BitConverter.GetBytes(payload.Length).Reverse());
+        bytes.AddRange(ToBigEndianBytes(code));
+        bytes.AddRange(ToBigEndianBytes(payload.Length));
         bytes.AddRange(payload);
         return bytes.ToArray();
+    }
+
+    private static byte[] ToBigEndianBytes(int value)
+    {
+        var bytes = BitConverter.GetBytes(value);
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(bytes);
+        }
+
+        return bytes;
     }
 
     private static byte[] Compress(byte[] input)
