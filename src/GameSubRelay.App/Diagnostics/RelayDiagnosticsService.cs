@@ -1,5 +1,6 @@
 using GameSubRelay.App.ViewModels;
 using GameSubRelay.Core.Audio;
+using GameSubRelay.Core.Configuration;
 using GameSubRelay.Core.SpeechRecognition;
 using GameSubRelay.Core.Translation;
 using GameSubRelay.Infrastructure.Audio;
@@ -111,7 +112,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
             .ConfigureAwait(false);
 
         await session.CompleteAsync(timeout.Token).ConfigureAwait(false);
-        return "连接成功：游戏语音字幕 AST 会话已建立";
+        return "连接成功：系统声音字幕 AST 会话已建立";
     }
 
     public async Task<string> TestGameCaptionFunctionAsync(
@@ -130,7 +131,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
             .ConfigureAwait(false);
         if (frames.Count == 0)
         {
-            return "未采集到游戏/系统声音，请确认已选择播放设备并让它正在出声";
+            return "未采集到系统/应用声音，请确认已选择播放设备并让它正在出声";
         }
 
         using var timeout = CreateTimeout(cancellationToken, ConnectionTimeout + ResponseTimeout);
@@ -152,8 +153,8 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
             !string.IsNullOrWhiteSpace(item.TranslatedText));
 
         return segment is null
-            ? $"已采集并发送游戏/系统声音（{FormatAudioSummary(frames)}），但未收到字幕结果"
-            : $"游戏字幕正常：{FormatAudioSummary(frames)}，原始：{Preview(segment.SourceText)}；翻译：{Preview(segment.TranslatedText)}";
+            ? $"已采集并发送系统/应用声音（{FormatAudioSummary(frames)}），但未收到字幕结果"
+            : $"系统字幕正常：{FormatAudioSummary(frames)}，原始：{Preview(segment.SourceText)}；翻译：{Preview(segment.TranslatedText)}";
     }
 
     public async Task<string> TestSpeechRecognitionConnectionAsync(
@@ -190,7 +191,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
             .ConfigureAwait(false);
         if (frames.Count == 0)
         {
-            return "未采集到游戏/系统声音，请确认已选择播放设备并让它正在出声";
+            return "未采集到系统/应用声音，请确认已选择播放设备并让它正在出声";
         }
 
         using var timeout = CreateTimeout(cancellationToken, ConnectionTimeout + ResponseTimeout);
@@ -206,32 +207,40 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
         var segment = segments.LastOrDefault(item => !string.IsNullOrWhiteSpace(item.Text));
 
         return segment is null
-            ? $"已采集并发送游戏/系统声音（{FormatAudioSummary(frames)}），但未收到 ASR 纯转写结果"
+            ? $"已采集并发送系统/应用声音（{FormatAudioSummary(frames)}），但未收到 ASR 纯转写结果"
             : $"ASR 纯转写正常：{FormatAudioSummary(frames)}，文本：{Preview(segment.Text)}";
     }
 
-    private VolcengineAstSpeechTranslationProvider CreateTranslationProvider(
+    private ISpeechTranslationProvider CreateTranslationProvider(
         TranslationSnapshot snapshot,
         string? outputDeviceId)
     {
-        return new VolcengineAstSpeechTranslationProvider(
-            new VolcengineAstProviderOptions(snapshot.AppKey, snapshot.AccessKey),
-            new VolcengineAstProtobufProtocolCodec(),
-            () => new ClientWebSocketAstTransport(
-                logger: _loggerFactory.CreateLogger<ClientWebSocketAstTransport>()),
-            audioOutputPlayer: null,
-            renderDeviceId: outputDeviceId,
-            _loggerFactory.CreateLogger<VolcengineAstSpeechTranslationProvider>());
+        return NormalizeTranslationProvider(snapshot.Provider) switch
+        {
+            TranslationSettings.DefaultProvider => new VolcengineAstSpeechTranslationProvider(
+                new VolcengineAstProviderOptions(snapshot.AppKey, snapshot.AccessKey),
+                new VolcengineAstProtobufProtocolCodec(),
+                () => new ClientWebSocketAstTransport(
+                    logger: _loggerFactory.CreateLogger<ClientWebSocketAstTransport>()),
+                audioOutputPlayer: null,
+                renderDeviceId: outputDeviceId,
+                logger: _loggerFactory.CreateLogger<VolcengineAstSpeechTranslationProvider>()),
+            var providerCode => throw new NotSupportedException($"尚未接入语音翻译服务商：{providerCode}")
+        };
     }
 
-    private VolcengineStreamingAsrProvider CreateSpeechRecognitionProvider(SpeechRecognitionSnapshot snapshot)
+    private ISpeechRecognitionProvider CreateSpeechRecognitionProvider(SpeechRecognitionSnapshot snapshot)
     {
-        return new VolcengineStreamingAsrProvider(
-            new VolcengineStreamingAsrOptions(snapshot.AppKey, snapshot.AccessKey),
-            new VolcengineStreamingAsrProtocolCodec(),
-            () => new ClientWebSocketStreamingAsrTransport(
-                logger: _loggerFactory.CreateLogger<ClientWebSocketStreamingAsrTransport>()),
-            _loggerFactory.CreateLogger<VolcengineStreamingAsrProvider>());
+        return NormalizeSpeechRecognitionProvider(snapshot.Provider) switch
+        {
+            SpeechRecognitionSettings.DefaultProvider => new VolcengineStreamingAsrProvider(
+                new VolcengineStreamingAsrOptions(snapshot.AppKey, snapshot.AccessKey),
+                new VolcengineStreamingAsrProtocolCodec(),
+                () => new ClientWebSocketStreamingAsrTransport(
+                    logger: _loggerFactory.CreateLogger<ClientWebSocketStreamingAsrTransport>()),
+                _loggerFactory.CreateLogger<VolcengineStreamingAsrProvider>()),
+            var providerCode => throw new NotSupportedException($"尚未接入语音识别服务商：{providerCode}")
+        };
     }
 
     private async Task<IReadOnlyList<AudioFrame>> CaptureFramesAsync(
@@ -392,7 +401,22 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
             : deviceId;
     }
 
+    private static string NormalizeTranslationProvider(string provider)
+    {
+        return string.IsNullOrWhiteSpace(provider)
+            ? TranslationSettings.DefaultProvider
+            : provider.Trim();
+    }
+
+    private static string NormalizeSpeechRecognitionProvider(string provider)
+    {
+        return string.IsNullOrWhiteSpace(provider)
+            ? SpeechRecognitionSettings.DefaultProvider
+            : provider.Trim();
+    }
+
     private sealed record TranslationSnapshot(
+        string Provider,
         string SourceLanguage,
         string TargetLanguage,
         string Region,
@@ -402,6 +426,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
         public static TranslationSnapshot From(TranslationSettingsViewModel settings)
         {
             return new TranslationSnapshot(
+                settings.Provider,
                 settings.SourceLanguage,
                 settings.TargetLanguage,
                 settings.Region,
@@ -414,6 +439,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
             GameCaptionSettingsViewModel settings)
         {
             return new TranslationSnapshot(
+                credentials.Provider,
                 settings.SourceLanguage,
                 settings.TargetLanguage,
                 settings.Region,
@@ -423,6 +449,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
     }
 
     private sealed record SpeechRecognitionSnapshot(
+        string Provider,
         string Language,
         string Region,
         string AppKey,
@@ -431,6 +458,7 @@ public sealed class RelayDiagnosticsService : IRelayDiagnosticsService
         public static SpeechRecognitionSnapshot From(SpeechRecognitionSettingsViewModel settings)
         {
             return new SpeechRecognitionSnapshot(
+                settings.Provider,
                 settings.Language,
                 settings.Region,
                 settings.AccessKeyId,

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the Windows MVP for live two-channel game speech translation with a click-through subtitle overlay and optional translated speech output.
+**Goal:** Build the Windows MVP for live two-channel Windows speech translation with a click-through subtitle overlay and optional translated speech output. The product is now positioned for general system/application audio scenarios; games remain one supported use case.
 
-**Architecture:** Use a .NET desktop solution with a WPF app shell, a pure Core project for state/models/interfaces, and an Infrastructure project for NAudio, Win32 interop, Volcengine WebSocket providers, config persistence, and output playback. Keep subtitle rendering independent from TTS so captions remain available when speech output is disabled or failing.
+**Architecture:** Use a .NET desktop solution with a WPF app shell, a pure Core project for state/models/interfaces, and an Infrastructure project for NAudio, Win32 interop, Provider-based speech services, config persistence, and output playback. Current implementation uses Volcengine WebSocket providers while keeping the service boundary open for other vendors. Keep subtitle rendering independent from TTS so captions remain available when speech output is disabled or failing.
 
 **Tech Stack:** .NET 8, WPF, NAudio, Microsoft.Extensions.Hosting, System.Text.Json, DPAPI, ClientWebSocket, xUnit, FluentAssertions.
 
@@ -717,4 +717,3 @@ MVP is complete when:
 - No task requires committing secrets or storing API credentials in plaintext.
 - The implementation is decomposed so fake Provider and fake audio can validate UI before real API credentials are available.
 - The riskiest integrations are isolated behind interfaces: audio capture, speech translation, TTS, hotkeys, and click-through window flags.
-

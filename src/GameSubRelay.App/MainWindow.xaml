@@ -58,7 +58,7 @@
                     <TextBlock
                         Margin="0 6 0 0"
                         Style="{StaticResource MutedTextStyle}"
-                        Text="快速控制语音服务和字幕浮层；详细参数在左侧分类里调整。" />
+                        Text="快速控制语音翻译服务和字幕浮层；详细参数在左侧分类里调整。" />
                 </StackPanel>
 
                 <WrapPanel
@@ -82,7 +82,7 @@
                             <TextBlock
                                 FontWeight="SemiBold"
                                 Foreground="#244EA4"
-                                Text="游戏字幕" />
+                                Text="系统字幕" />
                             <TextBlock
                                 Margin="8 0 0 0"
                                 Foreground="#244EA4"
@@ -142,7 +142,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="游戏语音字幕" />
+                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="系统声音字幕" />
                     <TextBlock
                         Grid.Row="1"
                         Margin="0 0 0 14"

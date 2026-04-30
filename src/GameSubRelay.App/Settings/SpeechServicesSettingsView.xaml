@@ -14,7 +14,7 @@
             <TextBlock
                 Margin="0 6 0 0"
                 Style="{StaticResource MutedTextStyle}"
-                Text="分别配置 AST 双通道：麦克风用于同声传译 s2s，游戏/系统声音用于游戏语音字幕 s2t。" />
+                Text="分别配置双通道语音翻译：麦克风用于同声传译，系统/应用声音用于字幕翻译。当前服务商为火山 AST，后续可扩展其他厂商。" />
         </StackPanel>
 
         <Grid Grid.Row="1">

@@ -1,25 +1,25 @@
-# GameSubRelay AST 双通道设计
+# GameSubRelay 双通道语音翻译设计
 
 日期：2026-04-29  
 状态：设计修订稿  
-适用阶段：下一轮架构调整和 UI 改造  
+适用阶段：通用 Windows 同声传译定位与 Provider 扩展
 
 ## 1. 设计结论
 
-GameSubRelay 的主流程应统一使用火山引擎同声传译 2.0 AST 服务，而不是把“游戏声音”接到纯 ASR。
+GameSubRelay 的产品定位是通用 Windows 同声传译软件：采集麦克风和系统/应用声音，输出实时字幕、译文和可选翻译语音。当前实现使用火山引擎同声传译 2.0 AST 服务，应用层通过 Provider 接口保留后续接入其他厂商的空间。
 
 核心原因：
 
-- 用户目标不是“把游戏声音转写出来”，而是“听懂其他玩家说话”，需要识别和翻译同时完成。
-- 火山 AST 服务已经覆盖识别、翻译、字幕和可选目标语音输出，适合同时承载麦克风和游戏声音两路通道。
-- 纯 ASR 保留为诊断和后续“只转写”能力，不作为游戏字幕主链路。
+- 用户目标不是“只把声音转写出来”，而是把会议、直播、语音聊天、视频或游戏中的语音尽快翻译成可读字幕。
+- 火山 AST 服务已经覆盖识别、翻译、字幕和可选目标语音输出，适合同时承载麦克风和系统/应用声音两路通道。
+- 纯 ASR 保留为诊断和后续“只转写”能力，不作为系统声音字幕主链路。
 
 目标架构：
 
 | 通道 | 输入 | AST 模式 | 输出 | 用户场景 |
 | --- | --- | --- | --- | --- |
-| 我的语音输出 | 麦克风 | `s2s` | 原文字幕、译文字幕、翻译后语音 | 我说中文，生成英文语音给队友听 |
-| 游戏语音字幕 | 游戏/系统声音 loopback | `s2t` | 原文字幕、译文字幕 | 其他玩家说话，翻译成我能读懂的字幕 |
+| 我的语音输出 | 麦克风 | `s2s` | 原文字幕、译文字幕、翻译后语音 | 我说中文，生成英文语音给对方听 |
+| 系统声音字幕 | 系统/应用声音 loopback | `s2t` | 原文字幕、译文字幕 | 把播放设备里的语音翻译成我能读懂的字幕 |
 
 ## 2. 官方文档依据
 
@@ -68,9 +68,9 @@ GameSubRelay 的主流程应统一使用火山引擎同声传译 2.0 AST 服务�
 
 `s2t` 用于语音到翻译文本。服务接收源语言音频，返回源字幕和译文字幕，不要求返回目标语音。
 
-适合“游戏语音字幕”：
+适合“系统声音字幕”：
 
-- 不播放翻译音频，避免和游戏原声、队友语音互相干扰。
+- 不播放翻译音频，避免和原声、会议音频、语音聊天或视频声音互相干扰。
 - 字幕浮窗显示原文和译文。
 - 延迟优先级高，字幕应尽快显示 interim，再用 final 覆盖。
 
@@ -137,7 +137,7 @@ public enum AstChannelMode
 public sealed record AstSettings(
     string Provider,
     AstChannelSettings Microphone,
-    AstChannelSettings GameAudio);
+    AstChannelSettings SystemAudio);
 ```
 
 敏感凭据仍放在 DPAPI secret store：
@@ -152,8 +152,8 @@ public sealed record AstSecretSettings(
 兼容迁移：
 
 - 旧 `TranslationSettings` 迁移到 `AstSettings.Microphone`。
-- 旧 `SpeechRecognitionSettings` 不再作为游戏声音主路径配置，只作为诊断/开发设置保留。
-- 如果旧配置里 `audio.microphoneEnabled=false`，UI 应展示“麦克风通道未启用”，但不影响游戏字幕通道。
+- 旧 `SpeechRecognitionSettings` 不再作为系统声音主路径配置，只作为诊断/开发设置保留。
+- 如果旧配置里 `audio.microphoneEnabled=false`，UI 应展示“麦克风通道未启用”，但不影响系统字幕通道。
 
 ## 6. 运行时架构
 
@@ -162,11 +162,11 @@ public sealed record AstSecretSettings(
 ```mermaid
 flowchart LR
     Mic["麦克风"] --> MicCapture["MicrophoneCaptureService"]
-    Game["游戏/系统声音"] --> Loopback["LoopbackCaptureService"]
+    SystemAudio["系统/应用声音"] --> Loopback["LoopbackCaptureService"]
     MicCapture --> AstMic["AstChannelWorker mode=s2s"]
-    Loopback --> AstGame["AstChannelWorker mode=s2t"]
+    Loopback --> AstSystem["AstChannelWorker mode=s2t"]
     AstMic --> CaptionStore["CaptionStore"]
-    AstGame --> CaptionStore
+    AstSystem --> CaptionStore
     AstMic --> AudioOut["翻译语音输出设备"]
     CaptionStore --> Overlay["字幕浮窗"]
 ```
@@ -192,7 +192,7 @@ flowchart LR
 浮窗只保留上下两个区域：
 
 - 上方：我的语音输出。
-- 下方：游戏语音字幕。
+- 下方：系统声音字幕。
 
 每个区域内部显示两行：
 
@@ -229,10 +229,10 @@ public sealed record ChannelCaptionState(
    - 目标语音输出设备。
    - 测试连接、测试 WAV、测试当前设备。
 
-2. **游戏语音字幕**
+2. **系统声音字幕**
    - 开始/停止。
    - 源语言、目标语言。
-   - 游戏/系统声音设备。
+   - 系统/应用声音设备。
    - 测试连接、测试 WAV、测试当前设备。
 
 3. **浮窗与全局设置**
@@ -245,7 +245,7 @@ public sealed record ChannelCaptionState(
 
 - 不再把主功能叫“语音识别”。
 - `同声传译` 可以作为产品能力名称保留。
-- 操作卡片使用“我的语音输出”和“游戏语音字幕”，更贴近用户任务。
+- 操作卡片使用“我的语音输出”和“系统声音字幕”，更贴近通用 Windows 桌面场景。
 
 ## 9. ASR 的保留边界
 
@@ -260,7 +260,7 @@ public sealed record ChannelCaptionState(
 
 不再承担：
 
-- 游戏语音主字幕链路。
+- 系统声音主字幕链路。
 - 翻译字幕生成。
 
 ## 10. 分阶段实施计划
@@ -271,10 +271,10 @@ public sealed record ChannelCaptionState(
 - 将旧同传/语音识别配置迁移到 AST 双通道配置。
 - README 和设置界面统一使用新概念。
 
-### 阶段 2：游戏声音改走 AST `s2t`
+### 阶段 2：系统声音改走 AST `s2t`
 
 - `AppAudioChannelWorkerFactory` 为麦克风创建 `s2s` worker。
-- `AppAudioChannelWorkerFactory` 为游戏声音创建 `s2t` worker。
+- `AppAudioChannelWorkerFactory` 为系统/应用声音创建 `s2t` worker。
 - `SpeechRecognitionChannelWorker` 从主启动入口移除。
 - 保留 ASR provider 和诊断测试入口。
 
@@ -289,14 +289,14 @@ public sealed record ChannelCaptionState(
 - 测试 `s2s` 会发送 target audio 配置。
 - 测试 `s2t` 不启动音频输出。
 - 测试停止顺序：停止采集、发送 final、等待 SessionFinished。
-- 日志区分 `MicAstS2S` 和 `GameAstS2T`，不要再混用 ASR 命名。
+- 日志区分 `MicAstS2S` 和 `SystemAstS2T`，不要再混用 ASR 命名。
 
 ## 11. 验收标准
 
 - 麦克风通道可以中文输入、英文音频输出，同时显示中文原文和英文译文。
-- 游戏声音通道可以识别其他玩家语音，并显示原文和译文字幕。
+- 系统声音通道可以识别播放设备中的语音，并显示原文和译文字幕。
 - 两个通道能独立开始和停止，互不影响。
-- 游戏声音通道停止时不会因为 WebSocket 被提前取消而报错。
+- 系统声音通道停止时不会因为 WebSocket 被提前取消而报错。
 - 浮窗只有上下两个区域，每个区域内部是原文和译文两行。
 - 语言方向可配置，不写死中英或英中。
 - 凭据只从本地配置/DPAPI/环境变量读取，不进入仓库。
@@ -304,6 +304,6 @@ public sealed record ChannelCaptionState(
 ## 12. 待确认问题
 
 - `s2s` 返回音频格式最终使用 `pcm` 还是 `ogg_opus`。当前 C# 实现使用 PCM；官方 Python 示例使用 `ogg_opus`。
-- 游戏声音是否需要可选“只显示译文，不显示原文”。
-- 是否需要按游戏或进程隔离音频。当前 MVP 仍使用播放设备 loopback，会采集该设备上的所有声音。
+- 系统声音是否需要可选“只显示译文，不显示原文”。
+- 是否需要按应用或进程隔离音频。当前实现仍使用播放设备 loopback，会采集该设备上的所有声音。
 - 多语言对的完整支持范围应以后续官方文档和实测结果为准。

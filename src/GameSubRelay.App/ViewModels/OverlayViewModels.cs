@@ -138,7 +138,7 @@ public sealed class OverlayViewModel : ViewModelBase
         _isVisible = _settings.Visible;
         Captions = new ObservableCollection<CaptionLineViewModel>();
         MicrophoneCaption = new CaptionLineViewModel { ChannelLabel = "麦克风" };
-        MonitorCaption = new CaptionLineViewModel { ChannelLabel = "游戏声音" };
+        MonitorCaption = new CaptionLineViewModel { ChannelLabel = "系统声音" };
 
         ToggleVisibilityCommand = new RelayCommand(_ => ToggleOverlayVisibility());
         ToggleEditModeCommand = new RelayCommand(_ => ToggleEditMode());
@@ -221,7 +221,7 @@ public sealed class OverlayViewModel : ViewModelBase
 
         EnsureMaxLines();
         ApplyLatestChannelCaption(lines, AudioChannelId.Microphone, MicrophoneCaption, "麦克风");
-        ApplyLatestChannelCaption(lines, AudioChannelId.Monitor, MonitorCaption, "游戏声音");
+        ApplyLatestChannelCaption(lines, AudioChannelId.Monitor, MonitorCaption, "系统声音");
     }
 
     private static void ApplyLatestChannelCaption(

@@ -6,11 +6,11 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24">
             <StackPanel Margin="0 0 0 18">
-                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="游戏语音字幕" />
+                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="系统声音字幕" />
                 <TextBlock
                     Margin="0 6 0 0"
                     Style="{StaticResource MutedTextStyle}"
-                    Text="配置游戏/系统声音的 AST s2t 字幕方向。凭据使用左侧火山 AST 配置。" />
+                    Text="配置系统/应用声音的字幕翻译方向。凭据使用左侧语音翻译服务商配置。" />
             </StackPanel>
 
             <Border Style="{StaticResource SectionPanelStyle}">

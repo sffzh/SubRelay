@@ -1,6 +1,7 @@
 using GameSubRelay.App.ViewModels;
 using GameSubRelay.Core.Audio;
 using GameSubRelay.Core.Captions;
+using GameSubRelay.Core.Configuration;
 using GameSubRelay.Core.Translation;
 using GameSubRelay.Infrastructure.Audio;
 using GameSubRelay.Infrastructure.Runtime;
@@ -36,13 +37,10 @@ public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
 
         if (_settings.Audio.MicrophoneEnabled)
         {
-            var astProvider = new VolcengineAstSpeechTranslationProvider(
-                new VolcengineAstProviderOptions(
-                    _settings.Translation.AccessKeyId,
-                    _settings.Translation.SecretAccessKey),
-                new VolcengineAstProtobufProtocolCodec(),
-                () => new ClientWebSocketAstTransport(
-                    logger: _loggerFactory.CreateLogger<ClientWebSocketAstTransport>()),
+            var translationProvider = CreateSpeechTranslationProvider(
+                _settings.Translation.Provider,
+                _settings.Translation.AccessKeyId,
+                _settings.Translation.SecretAccessKey,
                 new AudioOutputDevicePlayer(
                     _deviceService,
                     _loggerFactory.CreateLogger<AudioOutputDevicePlayer>()),
@@ -57,23 +55,20 @@ public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
             workers.Add(CreateWorker(
                 AudioChannelId.Microphone,
                 new MicrophoneCaptureService(_deviceService, NormalizeDeviceId(_settings.Audio.SelectedMicrophoneDevice)),
-                astProvider,
+                translationProvider,
                 astSessionOptions,
                 logger));
         }
 
         if (_settings.Audio.MonitorEnabled)
         {
-            var astProvider = new VolcengineAstSpeechTranslationProvider(
-                new VolcengineAstProviderOptions(
-                    _settings.Translation.AccessKeyId,
-                    _settings.Translation.SecretAccessKey),
-                new VolcengineAstProtobufProtocolCodec(),
-                () => new ClientWebSocketAstTransport(
-                    logger: _loggerFactory.CreateLogger<ClientWebSocketAstTransport>()),
+            var translationProvider = CreateSpeechTranslationProvider(
+                _settings.Translation.Provider,
+                _settings.Translation.AccessKeyId,
+                _settings.Translation.SecretAccessKey,
                 audioOutputPlayer: null,
                 renderDeviceId: null,
-                logger: astLogger);
+                astLogger: astLogger);
             var astSessionOptions = new SpeechTranslationSessionOptions(
                 _settings.GameCaption.SourceLanguage,
                 _settings.GameCaption.TargetLanguage,
@@ -83,12 +78,34 @@ public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
             workers.Add(CreateWorker(
                 AudioChannelId.Monitor,
                 new LoopbackCaptureService(_deviceService, NormalizeDeviceId(_settings.Audio.SelectedMonitorDevice)),
-                astProvider,
+                translationProvider,
                 astSessionOptions,
                 logger));
         }
 
         return workers;
+    }
+
+    private ISpeechTranslationProvider CreateSpeechTranslationProvider(
+        string provider,
+        string appKey,
+        string accessKey,
+        IAudioOutputPlayer? audioOutputPlayer,
+        string? renderDeviceId,
+        ILogger<VolcengineAstSpeechTranslationProvider> astLogger)
+    {
+        return NormalizeProvider(provider) switch
+        {
+            TranslationSettings.DefaultProvider => new VolcengineAstSpeechTranslationProvider(
+                new VolcengineAstProviderOptions(appKey, accessKey),
+                new VolcengineAstProtobufProtocolCodec(),
+                () => new ClientWebSocketAstTransport(
+                    logger: _loggerFactory.CreateLogger<ClientWebSocketAstTransport>()),
+                audioOutputPlayer,
+                renderDeviceId,
+                astLogger),
+            var providerCode => throw new NotSupportedException($"尚未接入语音翻译服务商：{providerCode}")
+        };
     }
 
     private TranslationChannelWorker CreateWorker(
@@ -120,5 +137,12 @@ public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
         return deviceId.StartsWith("Default ", StringComparison.OrdinalIgnoreCase)
             ? null
             : deviceId;
+    }
+
+    private static string NormalizeProvider(string provider)
+    {
+        return string.IsNullOrWhiteSpace(provider)
+            ? TranslationSettings.DefaultProvider
+            : provider.Trim();
     }
 }

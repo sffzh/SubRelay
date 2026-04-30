@@ -116,7 +116,7 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
 
     public ObservableCollection<ProviderOption> Providers { get; } = new()
     {
-        new("VolcengineAstTranslate", "火山同声传译 AST")
+        new(TranslationSettings.DefaultProvider, "火山引擎同声传译 AST（当前实现）")
     };
 
     public ObservableCollection<LanguageOption> AvailableSourceLanguages { get; } = CreateVolcengineAstLanguages();
@@ -242,7 +242,7 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
     private string ValidateConnectionLocally()
     {
         return string.IsNullOrWhiteSpace(AccessKeyId) || string.IsNullOrWhiteSpace(SecretAccessKey)
-            ? "请填写火山同声传译 APP ID 和 Access Token"
+            ? "请填写当前服务商 APP ID 和 Access Token（火山 AST）"
             : "凭据已填写；同传连通性会在通道启动时验证";
     }
 
@@ -374,7 +374,7 @@ public sealed class GameCaptionSettingsViewModel : ViewModelBase
     public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
     {
         await RunTestAsync(
-            "正在测试游戏语音字幕连接...",
+            "正在测试系统声音字幕连接...",
             result => ConnectionTestStatus = result,
             _testConnectionAsync,
             () => "测试连接需要运行时诊断服务",
@@ -384,7 +384,7 @@ public sealed class GameCaptionSettingsViewModel : ViewModelBase
     public async Task TestFunctionAsync(CancellationToken cancellationToken = default)
     {
         await RunTestAsync(
-            "正在测试游戏/系统声音字幕...",
+            "正在测试系统/应用声音字幕...",
             result => FunctionTestStatus = result,
             _testFunctionAsync,
             () => "测试功能需要运行时诊断服务",
@@ -441,7 +441,7 @@ public sealed class SpeechRecognitionSettingsViewModel : ViewModelBase
 
     public ObservableCollection<ProviderOption> Providers { get; } = new()
     {
-        new(SpeechRecognitionSettings.DefaultProvider, "ASR 诊断/纯转写测试（火山流式 ASR）")
+        new(SpeechRecognitionSettings.DefaultProvider, "ASR 诊断/纯转写测试（当前：火山流式 ASR）")
     };
 
     public ObservableCollection<LanguageOption> AvailableLanguages { get; } = CreateVolcengineAsrLanguages();
@@ -830,7 +830,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public string RelayStateText => IsRelayRunning ? "同传运行中" : "同传已停止";
 
-    public string SpeechRecognitionStateText => IsSpeechRecognitionRunning ? "游戏字幕运行中" : "游戏字幕已停止";
+    public string SpeechRecognitionStateText => IsSpeechRecognitionRunning ? "系统字幕运行中" : "系统字幕已停止";
 
     public string StatusText
     {
@@ -1011,7 +1011,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
         if (!Audio.MonitorEnabled)
         {
-            StatusText = "请先在音频设置中启用游戏/系统声音，再开始游戏语音字幕";
+            StatusText = "请先在音频设置中启用系统/应用声音，再开始系统声音字幕";
             return;
         }
 
@@ -1019,15 +1019,15 @@ public sealed class SettingsViewModel : ViewModelBase
         try
         {
             Apply();
-            StatusText = "正在开始游戏语音字幕...";
+            StatusText = "正在开始系统声音字幕...";
             await _runtimeService.StartChannelAsync(AudioChannelId.Monitor);
             UpdateRuntimeStates();
-            StatusText = IsSpeechRecognitionRunning ? "游戏语音字幕已开始" : "游戏语音字幕启动失败，请查看日志";
+            StatusText = IsSpeechRecognitionRunning ? "系统声音字幕已开始" : "系统声音字幕启动失败，请查看日志";
         }
         catch (Exception ex)
         {
             UpdateRuntimeStates();
-            StatusText = $"开始游戏语音字幕失败：{ex.Message}";
+            StatusText = $"开始系统声音字幕失败：{ex.Message}";
         }
         finally
         {
@@ -1046,15 +1046,15 @@ public sealed class SettingsViewModel : ViewModelBase
         IsSpeechRecognitionBusy = true;
         try
         {
-            StatusText = "正在停止游戏语音字幕...";
+            StatusText = "正在停止系统声音字幕...";
             await _runtimeService.StopChannelAsync(AudioChannelId.Monitor);
             UpdateRuntimeStates();
-            StatusText = "游戏语音字幕已停止";
+            StatusText = "系统声音字幕已停止";
         }
         catch (Exception ex)
         {
             UpdateRuntimeStates();
-            StatusText = $"停止游戏语音字幕失败：{ex.Message}";
+            StatusText = $"停止系统声音字幕失败：{ex.Message}";
         }
         finally
         {
@@ -1118,12 +1118,12 @@ public sealed class SettingsViewModel : ViewModelBase
         GameCaption.SetDiagnostics(
             cancellationToken => _diagnosticsService.TestGameCaptionConnectionAsync(Translation, GameCaption, cancellationToken),
             cancellationToken => IsSpeechRecognitionRunning
-                ? Task.FromResult("请先停止当前游戏语音字幕，再测试游戏字幕功能")
+                ? Task.FromResult("请先停止当前系统声音字幕，再测试系统字幕功能")
                 : _diagnosticsService.TestGameCaptionFunctionAsync(Translation, GameCaption, Audio, cancellationToken));
         SpeechRecognition.SetDiagnostics(
             cancellationToken => _diagnosticsService.TestSpeechRecognitionConnectionAsync(SpeechRecognition, cancellationToken),
             cancellationToken => IsSpeechRecognitionRunning
-                ? Task.FromResult("请先停止当前游戏语音字幕，再运行 ASR 诊断/纯转写测试")
+                ? Task.FromResult("请先停止当前系统声音字幕，再运行 ASR 诊断/纯转写测试")
                 : _diagnosticsService.TestSpeechRecognitionFunctionAsync(SpeechRecognition, Audio, cancellationToken));
     }
 

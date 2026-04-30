@@ -7,11 +7,11 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24">
             <StackPanel Margin="0 0 0 18">
-                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="游戏语音字幕" />
+                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="系统声音字幕诊断" />
                 <TextBlock
                     Margin="0 6 0 0"
                     Style="{StaticResource MutedTextStyle}"
-                    Text="配置游戏/系统声音的游戏语音字幕通道；保留的 ASR 项仅用于诊断和纯转写测试。" />
+                    Text="配置系统/应用声音通道的 ASR 诊断；保留的 ASR 项仅用于诊断和纯转写测试。" />
             </StackPanel>
 
             <Border Style="{StaticResource SectionPanelStyle}">

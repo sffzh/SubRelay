@@ -244,7 +244,7 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.False(viewModel.IsRelayRunning);
         Assert.False(viewModel.IsSpeechRecognitionRunning);
         Assert.Equal("同传已停止", viewModel.RelayStateText);
-        Assert.Equal("游戏字幕已停止", viewModel.SpeechRecognitionStateText);
+        Assert.Equal("系统字幕已停止", viewModel.SpeechRecognitionStateText);
         Assert.True(viewModel.StartRelayCommand.CanExecute(null));
         Assert.False(viewModel.StopRelayCommand.CanExecute(null));
         Assert.True(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
@@ -289,7 +289,7 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.True(viewModel.IsSpeechRecognitionRunning);
         Assert.Equal(0, runtimeService.GetStartCount(AudioChannelId.Microphone));
         Assert.Equal(1, runtimeService.GetStartCount(AudioChannelId.Monitor));
-        Assert.Equal("游戏字幕运行中", viewModel.SpeechRecognitionStateText);
+        Assert.Equal("系统字幕运行中", viewModel.SpeechRecognitionStateText);
         Assert.True(viewModel.StartRelayCommand.CanExecute(null));
         Assert.False(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
         Assert.True(viewModel.StopSpeechRecognitionCommand.CanExecute(null));
@@ -299,7 +299,7 @@ public sealed class SettingsViewModelPersistenceTests
         Assert.False(viewModel.IsSpeechRecognitionRunning);
         Assert.Equal(0, runtimeService.GetStopCount(AudioChannelId.Microphone));
         Assert.Equal(1, runtimeService.GetStopCount(AudioChannelId.Monitor));
-        Assert.Equal("游戏字幕已停止", viewModel.SpeechRecognitionStateText);
+        Assert.Equal("系统字幕已停止", viewModel.SpeechRecognitionStateText);
         Assert.True(viewModel.StartSpeechRecognitionCommand.CanExecute(null));
         Assert.False(viewModel.StopSpeechRecognitionCommand.CanExecute(null));
     }

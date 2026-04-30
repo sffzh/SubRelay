@@ -497,7 +497,7 @@
             <div class="form-grid">
               <label>麦克风设备</label>
               <select><option>默认麦克风 - Realtek Audio</option></select>
-              <label>语音识别播放设备</label>
+              <label>系统/应用声音设备</label>
               <select><option>默认输出 - Speakers</option></select>
               <label>同声输出设备</label>
               <select><option>虚拟音频线 - VoiceMeeter Input</option></select>
@@ -507,7 +507,7 @@
           <div class="section">
             <p class="section-title">通道开关</p>
             <label class="checkline"><input type="checkbox" checked />启用同声传译（麦克风）</label>
-            <label class="checkline"><input type="checkbox" checked />启用语音识别（播放设备）</label>
+            <label class="checkline"><input type="checkbox" checked />启用系统声音字幕（播放设备）</label>
           </div>
         </section>
 
@@ -515,13 +515,13 @@
           <header class="page-header">
             <div>
               <h2>同声传译</h2>
-              <div class="muted">配置麦克风通道的实时翻译服务、语言方向和火山凭据。</div>
+              <div class="muted">配置麦克风通道的实时翻译服务商、语言方向和凭据。</div>
             </div>
           </header>
           <div class="section">
             <div class="form-grid">
-              <label>同传服务</label>
-              <select><option>火山引擎同声传译</option></select>
+              <label>语音翻译服务商</label>
+              <select><option>火山引擎同声传译 AST</option></select>
               <label>源语言</label>
               <select><option>中文 / 英文自动</option></select>
               <label>目标语言</label>
@@ -545,8 +545,8 @@
         <section class="page" id="recognition">
           <header class="page-header">
             <div>
-              <h2>语音识别</h2>
-              <div class="muted">配置播放设备通道的语音识别服务、识别语言和火山凭据。</div>
+              <h2>系统声音字幕诊断</h2>
+              <div class="muted">配置播放设备通道的 ASR 诊断服务、识别语言和凭据。</div>
             </div>
           </header>
           <div class="section">

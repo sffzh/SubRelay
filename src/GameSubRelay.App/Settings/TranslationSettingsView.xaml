@@ -11,7 +11,7 @@
                 <TextBlock
                     Margin="0 6 0 0"
                     Style="{StaticResource MutedTextStyle}"
-                    Text="配置麦克风 AST s2s 同声传译方向和火山凭据，例如中文麦克风转英文语音。" />
+                    Text="配置麦克风同声传译方向、服务商和凭据，例如中文麦克风转英文语音。" />
             </StackPanel>
 
             <Border Style="{StaticResource SectionPanelStyle}">
@@ -30,7 +30,7 @@
                     <TextBlock
                         Grid.Row="0"
                         Style="{StaticResource FieldLabelTextStyle}"
-                        Text="AST 服务" />
+                        Text="语音翻译服务商" />
                     <ComboBox
                         Grid.Row="0"
                         Grid.Column="1"
@@ -82,7 +82,7 @@
 
             <Border Style="{StaticResource SectionPanelStyle}">
                 <StackPanel>
-                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="火山 AST 凭据" />
+                    <TextBlock Style="{StaticResource SectionTitleTextStyle}" Text="服务商凭据（当前：火山 AST）" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="180" />
@@ -117,7 +117,7 @@
                     <TextBlock
                         Margin="0 12 0 0"
                         Style="{StaticResource MutedTextStyle}"
-                        Text="非中英互译时，源语言或目标语言至少一个应为中文或英语；中英互译需要源语言和目标语言都选择 zhen。" />
+                        Text="语言选项来自当前服务商能力；非中英互译时，源语言或目标语言至少一个应为中文或英语；中英互译需要源语言和目标语言都选择 zhen。" />
                 </StackPanel>
             </Border>
 
