@@ -17,6 +17,11 @@ SubRelay 是一个 Windows 桌面端实时语音翻译字幕工具，用于采�
 
 ## 本Fork项目与源项目的差别：
 
+本项目Fork自`Pililink/SubRelay:main` 参见 源项目：[Pililink/SubRelay](https://github.com/Pililink/SubRelay).
+Fork并修改的的原因是火山引擎接口规范调整，导致原项目接口调用失败。
+
+以下是具体修改项：
+
 - 修改了服务商凭据字段，以支持火山引擎（豆包语音服务）的新的接口规范
   > 参见 [服务商与凭据](#服务商与凭据) 章节
 - 增加接同传接口的mode参数：可选择翻译方式为“语音转语音”或“语音转文字”。默认为“语音转文字”
