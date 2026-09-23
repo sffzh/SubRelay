@@ -42,7 +42,7 @@ public sealed class OverlayViewModelCaptionTests
                 now.AddMilliseconds(-500))
         ]);
 
-        Assert.Equal("麦克风", viewModel.MicrophoneCaption.ChannelLabel);
+        Assert.Equal("主讲", viewModel.MicrophoneCaption.ChannelLabel);
         Assert.Equal("current mic", viewModel.MicrophoneCaption.SourceText);
         Assert.Equal("当前麦克风", viewModel.MicrophoneCaption.TranslatedText);
         Assert.False(viewModel.MicrophoneCaption.IsFinal);
