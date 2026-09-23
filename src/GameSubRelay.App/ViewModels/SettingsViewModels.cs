@@ -92,6 +92,11 @@ public sealed record ProviderOption(string Code, string Name)
     public string DisplayText => $"{Name} ({Code})";
 }
 
+public sealed record ModeOption(string Code, string Name)
+{
+    public string DisplayText => $"{Name} ({Code})";
+}
+
 public sealed record LanguageOption(string Code, string Name)
 {
     public string DisplayText => $"{Name} ({Code})";
@@ -103,6 +108,7 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
     private string _sourceLanguage = "en";
     private string _targetLanguage = "zh";
     private string _region = "cn-north-1";
+    private string _mode = "s2t";
     private string _accessKeyId = string.Empty;
     private string _secretAccessKey = string.Empty;
     private string _ttsToken = string.Empty;
@@ -122,6 +128,11 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
     public ObservableCollection<LanguageOption> AvailableSourceLanguages { get; } = CreateVolcengineAstLanguages();
 
     public ObservableCollection<LanguageOption> AvailableTargetLanguages { get; } = CreateVolcengineAstLanguages();
+    public ObservableCollection<ModeOption> AvailableMode { get; } = new()
+    {
+        new("s2t", "语音转文字"),
+        new("s2s", "语音转语音"),
+    };
 
     public string Provider
     {
@@ -145,6 +156,12 @@ public sealed class TranslationSettingsViewModel : ViewModelBase
     {
         get => _region;
         set => SetProperty(ref _region, value);
+    }
+
+    public string Mode
+    {
+        get => _mode;
+        set => SetProperty(ref _mode, value);
     }
 
     public string AccessKeyId
@@ -299,6 +316,7 @@ public sealed class GameCaptionSettingsViewModel : ViewModelBase
     private string _sourceLanguage = GameCaptionSettings.Default.SourceLanguage;
     private string _targetLanguage = GameCaptionSettings.Default.TargetLanguage;
     private string _region = GameCaptionSettings.Default.Region;
+    private string _mode = GameCaptionSettings.Default.Mode;
     private string _connectionTestStatus = "未测试";
     private string _functionTestStatus = "未测试";
     private bool _isTesting;
@@ -310,7 +328,11 @@ public sealed class GameCaptionSettingsViewModel : ViewModelBase
 
     public ObservableCollection<LanguageOption> AvailableTargetLanguages { get; } =
         TranslationSettingsViewModel.CreateVolcengineAstLanguages();
-
+    public ObservableCollection<ModeOption> AvailableMode { get; } = new()
+    {
+        new("s2t", "语音转文字"),
+        new("s2s", "语音转语音"),
+    };
     public string SourceLanguage
     {
         get => _sourceLanguage;
@@ -327,6 +349,12 @@ public sealed class GameCaptionSettingsViewModel : ViewModelBase
     {
         get => _region;
         set => SetProperty(ref _region, value);
+    }
+
+    public string Mode
+    {
+        get => _mode;
+        set => SetProperty(ref _mode, value);
     }
 
     public string ConnectionTestStatus
@@ -1159,6 +1187,7 @@ public sealed class SettingsViewModel : ViewModelBase
         Translation.Provider = settings.Translation.Provider;
         Translation.SourceLanguage = settings.Translation.SourceLanguage;
         Translation.TargetLanguage = settings.Translation.TargetLanguage;
+        Translation.Mode = settings.Translation.Mode;
         Translation.Region = settings.Translation.Region;
         Translation.AccessKeyId = FirstNonEmpty(secrets.VolcengineAppKey, secrets.VolcengineAccessKeyId);
         Translation.SecretAccessKey = FirstNonEmpty(secrets.VolcengineAstAccessKey, secrets.VolcengineSecretAccessKey);
@@ -1169,6 +1198,7 @@ public sealed class SettingsViewModel : ViewModelBase
         GameCaption.SourceLanguage = settings.GameCaption.SourceLanguage;
         GameCaption.TargetLanguage = settings.GameCaption.TargetLanguage;
         GameCaption.Region = settings.GameCaption.Region;
+        GameCaption.Mode = settings.GameCaption.Mode;
 
         SpeechRecognition.Provider = settings.SpeechRecognition.Provider;
         SpeechRecognition.Language = settings.SpeechRecognition.Language;
@@ -1190,6 +1220,9 @@ public sealed class SettingsViewModel : ViewModelBase
         Overlay.FontSize = settings.Overlay.FontSize;
         Overlay.MaxLines = settings.Overlay.MaxLines;
         OverlayVisible = settings.Overlay.Visible;
+
+        Overlay.OriginalEnabled = settings.Overlay.OriginalEnabled;
+        Overlay.SystemAudioEnabled = settings.Overlay.SystemAudioEnabled;
 
         Hotkeys.ToggleOverlayHotkey = settings.Hotkeys.ToggleOverlay;
         Hotkeys.ToggleEditModeHotkey = settings.Hotkeys.ToggleEditMode;
@@ -1222,7 +1255,8 @@ public sealed class SettingsViewModel : ViewModelBase
                 Translation.Provider,
                 Translation.SourceLanguage,
                 Translation.TargetLanguage,
-                Translation.Region),
+                Translation.Region,
+                Translation.Mode),
             new SpeechRecognitionSettings(
                 SpeechRecognition.Provider,
                 SpeechRecognition.Language,
@@ -1235,7 +1269,9 @@ public sealed class SettingsViewModel : ViewModelBase
                 Overlay.Opacity,
                 ToInt(Overlay.FontSize),
                 Overlay.MaxLines,
-                OverlayVisible),
+                OverlayVisible,
+                Overlay.OriginalEnabled,
+                Overlay.SystemAudioEnabled),
             new HotkeySettings(
                 Hotkeys.ToggleOverlayHotkey,
                 Hotkeys.ToggleEditModeHotkey,
@@ -1245,7 +1281,8 @@ public sealed class SettingsViewModel : ViewModelBase
             GameCaption = new GameCaptionSettings(
                 GameCaption.SourceLanguage,
                 GameCaption.TargetLanguage,
-                GameCaption.Region)
+                GameCaption.Region,
+                GameCaption.Mode)
         };
     }
 

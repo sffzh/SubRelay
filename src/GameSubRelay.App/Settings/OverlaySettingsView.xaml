@@ -23,6 +23,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <TextBlock
@@ -80,6 +81,8 @@
                         Margin="0 16 0 0"
                         HorizontalAlignment="Left"
                         Text="{Binding MaxLines}" />
+                    <CheckBox Grid.Row="3" Content="显示原文" IsChecked="{Binding OriginalEnabled}" />
+                    <CheckBox Grid.Row="3"  Grid.Column="1"  Content="显示系统声音" IsChecked="{Binding SystemAudioEnabled}" />
                 </Grid>
             </Border>
 

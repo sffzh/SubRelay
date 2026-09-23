@@ -8,7 +8,10 @@ public sealed record OverlaySettings(
     double Opacity,
     int FontSize,
     int MaxLines,
-    bool Visible)
+    bool Visible,
+    bool OriginalEnabled ,
+    bool SystemAudioEnabled
+    )
 {
     public static OverlaySettings Default => new(
         Left: 120,
@@ -18,7 +21,9 @@ public sealed record OverlaySettings(
         Opacity: 0.65,
         FontSize: 22,
         MaxLines: 6,
-        Visible: true);
+        Visible: true,
+        OriginalEnabled: true,
+        SystemAudioEnabled: true);
 
     public OverlaySettings Normalize()
     {

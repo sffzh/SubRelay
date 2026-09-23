@@ -50,7 +50,7 @@ public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
                 _settings.Translation.SourceLanguage,
                 _settings.Translation.TargetLanguage,
                 _settings.Translation.Region,
-                Mode: "s2s");
+                Mode: _settings.Translation.Mode);
 
             workers.Add(CreateWorker(
                 AudioChannelId.Microphone,
@@ -73,7 +73,7 @@ public sealed class AppAudioChannelWorkerFactory : IAudioChannelWorkerFactory
                 _settings.GameCaption.SourceLanguage,
                 _settings.GameCaption.TargetLanguage,
                 _settings.GameCaption.Region,
-                Mode: "s2t");
+                Mode: _settings.GameCaption.Mode);
 
             workers.Add(CreateWorker(
                 AudioChannelId.Monitor,

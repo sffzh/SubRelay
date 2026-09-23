@@ -26,8 +26,10 @@
                 Padding="12">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="*"/>
+                    <!-- 麦克风字幕行：永远启用，一直是* -->
+                    <RowDefinition local:GridRowExtension.IsStarWhenVisible="True"/>
+                    <!-- 系统音频字幕行：由 Settings.SystemAudioEnabled 控制是否为*，false则高度=0 -->
+                    <RowDefinition local:GridRowExtension.IsStarWhenVisible="{Binding Settings.SystemAudioEnabled}"/>
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0"
@@ -38,15 +40,16 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <TextBlock Text="{Binding MicrophoneCaption.ChannelLabel}"
                                    Foreground="#D0FFFFFF"
                                    FontSize="14"
                                    FontWeight="SemiBold"
                                    Margin="0 0 0 4" />
-                        <Grid Grid.Row="1">
+                        <Grid Grid.Row="1"
+                            Visibility="{Binding Settings.OriginalEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="44" />
                                 <ColumnDefinition Width="*" />
@@ -83,20 +86,22 @@
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="1"
+                <Border x:Name="SystemAudioBorder" Grid.Row="1"
+                        Visibility="{Binding Settings.SystemAudioEnabled, Converter={StaticResource BooleanToVisibilityConverter}}"
                         Padding="8 4 8 0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <TextBlock Text="{Binding MonitorCaption.ChannelLabel}"
                                    Foreground="#D0FFFFFF"
                                    FontSize="14"
                                    FontWeight="SemiBold"
                                    Margin="0 0 0 4" />
-                        <Grid Grid.Row="1">
+                        <Grid Grid.Row="1"
+                            Visibility="{Binding Settings.OriginalEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="44" />
                                 <ColumnDefinition Width="*" />

@@ -30,16 +30,18 @@ public sealed class SettingsViewModelPersistenceTests
                 "VolcengineAstTranslate",
                 "ja",
                 "zh",
-                "cn-north-1"),
+                "cn-north-1",
+                "s2t"),
             GameCaption = new GameCaptionSettings(
                 "en",
                 "zh",
-                "cn-north-1"),
+                "cn-north-1",
+                "s2t"),
             SpeechRecognition = new SpeechRecognitionSettings(
                 "VolcengineStreamingAsr",
                 "de",
                 "cn-north-1"),
-            Overlay = new OverlaySettings(11, 22, 333, 144, 0.7, 28, 4, Visible: true),
+            Overlay = new OverlaySettings(11, 22, 333, 144, 0.7, 28, 4, Visible: true, OriginalEnabled: true, SystemAudioEnabled: true),
             Hotkeys = new HotkeySettings("Ctrl+Alt+J", "Ctrl+Alt+K", "Ctrl+Alt+L"),
             Tts = new TtsSettings(true, false, true, 3)
         };

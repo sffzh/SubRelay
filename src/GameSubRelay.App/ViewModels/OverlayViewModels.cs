@@ -16,6 +16,9 @@ public sealed class OverlayRenderSettings : ViewModelBase
     private int _maxLines = 6;
     private bool _visible;
 
+    private bool _originalEnabled = true;
+    private bool _systemAudioEnabled = true;
+
     public double Left
     {
         get => _left;
@@ -62,6 +65,18 @@ public sealed class OverlayRenderSettings : ViewModelBase
     {
         get => _visible;
         set => SetProperty(ref _visible, value);
+    }
+
+    public bool OriginalEnabled
+    {
+        get => _originalEnabled;
+        set => SetProperty(ref _originalEnabled, value);
+    }
+
+    public bool SystemAudioEnabled
+    {
+        get => _systemAudioEnabled;
+        set => SetProperty(ref _systemAudioEnabled, value);
     }
 }
 
@@ -220,7 +235,7 @@ public sealed class OverlayViewModel : ViewModelBase
         }
 
         EnsureMaxLines();
-        ApplyLatestChannelCaption(lines, AudioChannelId.Microphone, MicrophoneCaption, "麦克风");
+        ApplyLatestChannelCaption(lines, AudioChannelId.Microphone, MicrophoneCaption, "主讲");
         ApplyLatestChannelCaption(lines, AudioChannelId.Monitor, MonitorCaption, "系统声音");
     }
 

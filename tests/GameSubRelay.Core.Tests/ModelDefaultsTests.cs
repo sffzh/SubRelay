@@ -40,7 +40,7 @@ public class ModelDefaultsTests
     [Fact]
     public void Overlay_defaults_should_be_normalized_on_demand()
     {
-        var overlay = new OverlaySettings(-1, -1, 1, 1, 0.01, 1, 100, true).Normalize();
+        var overlay = new OverlaySettings(-1, -1, 1, 1, 0.01, 1, 100, true, true, true).Normalize();
 
         Assert.Equal(0.2, overlay.Opacity);
         Assert.Equal(12, overlay.MaxLines);

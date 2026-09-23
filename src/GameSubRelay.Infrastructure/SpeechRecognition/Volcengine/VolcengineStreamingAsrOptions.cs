@@ -25,7 +25,7 @@ public sealed record VolcengineStreamingAsrOptions
         string ResourceId = BigAsr1DurationResourceId,
         Uri? Endpoint = null)
     {
-        this.AppKey = AppKey.Trim();
+        this.AppKey = "decrypted-app-key"; // AppKey.Trim();
         this.AccessKey = AccessKey.Trim();
         this.ResourceId = ResourceId.Trim();
         this.Endpoint = Endpoint ?? OptimizedBidirectionalEndpoint;
@@ -50,9 +50,9 @@ public sealed record VolcengineStreamingAsrOptions
 
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["X-Api-Key"] = AppKey,
-            ["X-Api-App-Key"] = AppKey,
-            ["X-Api-Access-Key"] = AccessKey,
+            // ["X-Api-App-Key"] = AppKey,
+            // ["X-Api-Access-Key"] = AccessKey,
+            ["X-Api-Key"] = AccessKey,
             ["X-Api-Resource-Id"] = ResourceId,
             ["X-Api-Connect-Id"] = connectId
         };
@@ -60,10 +60,10 @@ public sealed record VolcengineStreamingAsrOptions
 
     public void EnsureCredentialsPresent()
     {
-        if (string.IsNullOrWhiteSpace(AppKey))
-        {
-            throw new InvalidOperationException("Volcengine streaming ASR app key is required.");
-        }
+        // if (string.IsNullOrWhiteSpace(AppKey))
+        // {
+        //     throw new InvalidOperationException("Volcengine streaming ASR app key is required.");
+        // }
 
         if (string.IsNullOrWhiteSpace(AccessKey))
         {

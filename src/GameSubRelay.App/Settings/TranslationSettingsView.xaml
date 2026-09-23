@@ -25,6 +25,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <TextBlock
@@ -71,12 +72,27 @@
                         Grid.Row="3"
                         Margin="0 14 0 0"
                         Style="{StaticResource FieldLabelTextStyle}"
-                        Text="区域" />
-                    <TextBox
+                        Text="翻译模式" />
+                    <ComboBox
                         Grid.Row="3"
                         Grid.Column="1"
                         Margin="0 14 0 0"
+                        DisplayMemberPath="DisplayText"
+                        ItemsSource="{Binding AvailableMode}"
+                        SelectedValue="{Binding Mode, Mode=TwoWay}"
+                        SelectedValuePath="Code" />
+
+                    <TextBlock
+                        Grid.Row="4"
+                        Margin="0 14 0 0"
+                        Style="{StaticResource FieldLabelTextStyle}"
+                        Text="区域" />
+                    <TextBox
+                        Grid.Row="4"
+                        Grid.Column="1"
+                        Margin="0 14 0 0"
                         Text="{Binding Region}" />
+
                 </Grid>
             </Border>
 
@@ -90,23 +106,13 @@
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-
-                        <TextBlock
-                            Grid.Row="0"
-                            Style="{StaticResource FieldLabelTextStyle}"
-                            Text="APP ID" />
-                        <TextBox
-                            Grid.Row="0"
-                            Grid.Column="1"
-                            Text="{Binding AccessKeyId}" />
 
                         <TextBlock
                             Grid.Row="1"
                             Margin="0 14 0 0"
                             Style="{StaticResource FieldLabelTextStyle}"
-                            Text="Access Token" />
+                            Text="API Key" />
                         <PasswordBox
                             x:Name="SecretAccessKeyBox"
                             Grid.Row="1"

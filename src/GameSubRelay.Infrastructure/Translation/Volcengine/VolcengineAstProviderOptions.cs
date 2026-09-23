@@ -19,7 +19,7 @@ public sealed record VolcengineAstProviderOptions
         string? ResourceId = null,
         Uri? Endpoint = null)
     {
-        this.AppKey = AppKey.Trim();
+        this.AppKey = "decrypted-app-key"; // AppKey.Trim();
         this.AccessKey = AccessKey.Trim();
         this.ResourceId = string.IsNullOrWhiteSpace(ResourceId)
             ? DefaultResourceId
@@ -53,9 +53,9 @@ public sealed record VolcengineAstProviderOptions
 
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["X-Api-Key"] = AppKey,
-            ["X-Api-App-Key"] = AppKey,
-            ["X-Api-Access-Key"] = AccessKey,
+            // ["X-Api-App-Key"] = AppKey,
+            // ["X-Api-Access-Key"] = AccessKey,
+            ["X-Api-Key"] = AccessKey,
             ["X-Api-Resource-Id"] = ResourceId,
             ["X-Api-Connect-Id"] = connectId
         };
@@ -63,11 +63,6 @@ public sealed record VolcengineAstProviderOptions
 
     public void EnsureCredentialsPresent()
     {
-        if (string.IsNullOrWhiteSpace(AppKey))
-        {
-            throw new InvalidOperationException(
-                $"Volcengine AST app key is required. Set {AppKeyEnvironmentVariable} or pass it through settings/secrets.");
-        }
 
         if (string.IsNullOrWhiteSpace(AccessKey))
         {

@@ -19,7 +19,7 @@ public class VolcengineAstTranslationTests
 
         var headers = options.CreateHeaders("connect-id");
 
-        headers.Should().Contain("X-Api-Key", "app-key");
+        headers.Should().Contain("X-Api-Key", "access-key");
         // headers.Should().Contain("X-Api-App-Key", "app-key");
         // headers.Should().Contain("X-Api-Access-Key", "access-key");
         headers.Should().Contain("X-Api-Resource-Id", VolcengineAstProviderOptions.DefaultResourceId);
@@ -118,7 +118,7 @@ public class VolcengineAstTranslationTests
             CancellationToken.None);
 
         transport.ConnectedUri.Should().Be(VolcengineAstProviderOptions.DefaultEndpoint);
-        transport.Headers.Should().Contain("X-Api-App-Key", "app-key");
+        transport.Headers.Should().Contain("X-Api-Key", "access-key");
         transport.Headers.Should().ContainKey("X-Api-Connect-Id");
         codec.EncodedMessages.Should().ContainSingle(message => message.Event == AstClientEventType.StartSession);
         codec.EncodedMessages[0].SessionConfig.Should().NotBeNull();
