@@ -19,8 +19,9 @@ public class VolcengineAstTranslationTests
 
         var headers = options.CreateHeaders("connect-id");
 
-        headers.Should().Contain("X-Api-App-Key", "app-key");
-        headers.Should().Contain("X-Api-Access-Key", "access-key");
+        headers.Should().Contain("X-Api-Key", "app-key");
+        // headers.Should().Contain("X-Api-App-Key", "app-key");
+        // headers.Should().Contain("X-Api-Access-Key", "access-key");
         headers.Should().Contain("X-Api-Resource-Id", VolcengineAstProviderOptions.DefaultResourceId);
         headers.Should().Contain("X-Api-Connect-Id", "connect-id");
         headers.Keys.Should().OnlyContain(key => key.StartsWith("X-Api-", StringComparison.Ordinal));

@@ -50,6 +50,7 @@ public sealed record VolcengineStreamingAsrOptions
 
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
+            ["X-Api-Key"] = AppKey,
             ["X-Api-App-Key"] = AppKey,
             ["X-Api-Access-Key"] = AccessKey,
             ["X-Api-Resource-Id"] = ResourceId,
